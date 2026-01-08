@@ -9,7 +9,7 @@ const LEVELS = {
   standard: { iterations: 310000, words: 4 },
   strong:   { iterations: 600000, words: 6 },
   high:     { iterations: 1200000, words: 8 },
-  critical: { iteratinos: 2400000, words: 16 },
+  critical: { iterations: 2400000, words: 16 },
 };
 
 function setStatus(el, msg, kind = "info") {
