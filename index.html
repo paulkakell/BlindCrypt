@@ -5,147 +5,134 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BlindCrypt</title>
   <link rel="stylesheet" href="assets/app.css" />
-  <meta name="description" content="Client-side file encryption and decryption. Your passphrase and plaintext never leave your browser." />
+  <!-- Argon2id via CDN (argon2-browser). Kept external to avoid large binaries in repo. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js"></script>
+  <script defer src="assets/app.js"></script>
 </head>
 <body>
   <header class="wrap">
-    <div class="brand">
-      <div class="logo" aria-hidden="true">BC</div>
-      <div>
-        <h1>BlindCrypt</h1>
-        <p class="sub">Encrypt and decrypt locally in your browser. Server never receives your passphrase or plaintext.</p>
-      </div>
-    </div>
+    <h1>BlindCrypt</h1>
+    <p class="sub">Client-side file encryption and decryption in your browser.</p>
   </header>
 
   <main class="wrap">
-    <nav class="tabs" role="tablist" aria-label="BlindCrypt tabs">
-      <button class="tab active" role="tab" aria-selected="true" data-tab="encrypt">Encrypt</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="decrypt">Decrypt</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="about">About</button>
-    </nav>
+    <div class="tabs">
+      <button class="tab active" data-tab="encrypt">Encrypt</button>
+      <button class="tab" data-tab="decrypt">Decrypt</button>
+    </div>
 
-    <section class="panel show" id="encrypt" role="tabpanel">
+    <section id="tab-encrypt" class="panel active">
       <h2>Encrypt a file</h2>
 
       <div class="grid">
-        <div class="card">
-          <label class="label">1) Choose a file</label>
+        <label class="field">
+          <span>Choose file</span>
           <input id="encFile" type="file" />
-          <p class="hint" id="encFileHint">Tip: Large files use more memory. Prefer smaller files for browser-only workflows.</p>
-        </div>
+        </label>
 
-        <div class="card">
-          <label class="label">2) Security level</label>
+        <label class="field">
+          <span>Encryption level</span>
           <select id="encLevel">
-            <option value="standard">Standard (fast)</option>
-            <option value="strong" selected>Strong (recommended)</option>
-            <option value="high">High (slower)</option>
-            <option value="critical">Critical (slowest)</option>
+            <option value="standard">Standard</option>
+            <option value="high">High</option>
+            <option value="critical" selected>Critical</option>
           </select>
+        </label>
 
-          <div class="kdfBox">
-            <div class="kdfRow">
-              <div>
-                <div class="kdfKey">KDF</div>
-                <div class="kdfVal">PBKDF2 (SHA-256)</div>
-              </div>
-              <div>
-                <div class="kdfKey">Iterations</div>
-                <div class="kdfVal" id="encIterLabel">600000</div>
-              </div>
-              <div>
-                <div class="kdfKey">Cipher</div>
-                <div class="kdfVal">AES-256-GCM</div>
-              </div>
+        <label class="field">
+          <span>KDF algorithm</span>
+          <select id="encKdf">
+            <option value="argon2id" selected>Argon2id (default)</option>
+            <option value="pbkdf2">PBKDF2</option>
+          </select>
+          <small class="hint">Argon2id uses a memory-hard design. PBKDF2 is widely supported.</small>
+        </label>
+
+        <label class="field">
+          <span>Enter passphrase</span>
+          <input id="encPass" type="password" autocomplete="new-password" placeholder="Use a long, unique passphrase" />
+          <div class="strength">
+            <div class="strength-row">
+              <progress id="encStrengthBar" max="120" value="0"></progress>
+              <span id="encStrengthLabel" class="mono">0 bits</span>
             </div>
+            <small id="encStrengthNote" class="hint">Passphrase Strength Scale updates as you type.</small>
           </div>
+        </label>
 
-          <p class="hint">This site is WebCrypto-native for GitHub Pages. For stronger GPU-resistant derivation, replace PBKDF2 with Argon2id via WASM.</p>
-        </div>
-
-        <div class="card">
-          <label class="label">3) Passphrase</label>
+        <div class="field">
+          <span>Or generate passphrase</span>
           <div class="row">
-            <input id="encPass" type="password" placeholder="Enter passphrase" autocomplete="new-password" />
-            <button id="encShow" class="btn secondary" type="button">Show</button>
+            <select id="genLevel">
+              <option value="standard">Standard</option>
+              <option value="high">High</option>
+              <option value="critical" selected>Critical</option>
+            </select>
+            <button id="genBtn" type="button">Generate</button>
           </div>
-
-          <div class="row">
-            <button id="genPass" class="btn" type="button">Generate passphrase</button>
-            <button id="copyPass" class="btn secondary" type="button">Copy</button>
-          </div>
-
-          <div class="row">
-            <input id="encConfirm" type="password" placeholder="Confirm passphrase" autocomplete="new-password" />
-          </div>
-
-          <p class="hint warn">If you lose the passphrase, the file cannot be recovered.</p>
+          <textarea id="genOut" rows="2" readonly placeholder="Generated passphrase will appear here"></textarea>
+          <small class="hint">Uses Diceware-style words (2048 list) with spaces.</small>
         </div>
       </div>
 
       <div class="actions">
-        <button id="doEncrypt" class="btn primary" type="button">Encrypt and download</button>
-        <div class="status" id="encStatus" aria-live="polite"></div>
+        <button id="encryptBtn" type="button">Encrypt and download</button>
+        <span id="encStatus" class="status"></span>
       </div>
+
+      <details class="details">
+        <summary>What happens to my file?</summary>
+        <ul>
+          <li>By default, the file is compressed (gzip) before encryption when your browser supports it.</li>
+          <li>Encryption uses AES-GCM with a random salt and IV.</li>
+          <li>The key is derived from your passphrase using Argon2id or PBKDF2, based on your selection.</li>
+          <li>No file bytes are uploaded by this page.</li>
+        </ul>
+      </details>
     </section>
 
-    <section class="panel" id="decrypt" role="tabpanel">
+    <section id="tab-decrypt" class="panel">
       <h2>Decrypt a file</h2>
 
       <div class="grid">
-        <div class="card">
-          <label class="label">1) Choose an encrypted file</label>
+        <label class="field">
+          <span>Choose encrypted file (.blindcrypt)</span>
           <input id="decFile" type="file" />
-          <p class="hint">BlindCrypt encrypted files contain a small header plus ciphertext.</p>
-        </div>
+        </label>
 
-        <div class="card">
-          <label class="label">2) Passphrase</label>
-          <div class="row">
-            <input id="decPass" type="password" placeholder="Enter passphrase" autocomplete="current-password" />
-            <button id="decShow" class="btn secondary" type="button">Show</button>
+        <label class="field">
+          <span>Enter passphrase</span>
+          <input id="decPass" type="password" autocomplete="current-password" placeholder="Passphrase used for encryption" />
+          <div class="strength">
+            <div class="strength-row">
+              <progress id="decStrengthBar" max="120" value="0"></progress>
+              <span id="decStrengthLabel" class="mono">0 bits</span>
+            </div>
+            <small id="decStrengthNote" class="hint">Passphrase Strength Scale updates as you type.</small>
           </div>
-          <p class="hint">Decryption will fail if the passphrase is wrong or the file was modified.</p>
-        </div>
-
-        <div class="card">
-          <label class="label">File info (after successful authentication)</label>
-          <div class="meta" id="decMeta">
-            <div class="metaRow"><span>Name</span><span class="mono" id="metaName">-</span></div>
-            <div class="metaRow"><span>Type</span><span class="mono" id="metaType">-</span></div>
-            <div class="metaRow"><span>Iterations</span><span class="mono" id="metaIter">-</span></div>
-          </div>
-        </div>
+        </label>
       </div>
 
       <div class="actions">
-        <button id="doDecrypt" class="btn primary" type="button">Decrypt and download</button>
-        <div class="status" id="decStatus" aria-live="polite"></div>
+        <button id="decryptBtn" type="button">Decrypt and download</button>
+        <span id="decStatus" class="status"></span>
       </div>
-    </section>
 
-    <section class="panel" id="about" role="tabpanel">
-      <h2>About</h2>
-      <div class="card">
-        <ul class="bullets">
-          <li>Encryption and decryption happen locally in your browser using WebCrypto.</li>
-          <li>Your passphrase and plaintext are not sent to any server.</li>
-          <li>Passphrase generator uses the 2048 word BIP39 English list.</li>
-          <li>Output format is versioned so you can extend it later.</li>
+      <details class="details">
+        <summary>Compatibility notes</summary>
+        <ul>
+          <li>If the encrypted file was created with Argon2id, this page needs to load argon2-browser from jsDelivr.</li>
+          <li>If your browser lacks gzip streams, files may be stored uncompressed.</li>
         </ul>
-        <p class="hint">Security note: if the device is compromised, a web app cannot protect the data. Use trusted endpoints.</p>
-      </div>
+      </details>
     </section>
   </main>
 
   <footer class="wrap footer">
-    <span class="mono">BlindCrypt</span>
-    <span class="dot">•</span>
-    <span class="muted">Client-side crypto for file handoff</span>
+    <div class="fineprint">
+      <span>BlindCrypt runs locally in your browser.</span>
+      <a href="https://github.com/paulkakell/BlindCrypt" target="_blank" rel="noopener">Repository</a>
+    </div>
   </footer>
-
-  <script src="assets/wordlist.js"></script>
-  <script src="assets/app.js"></script>
 </body>
 </html>
