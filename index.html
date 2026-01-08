@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BlindCrypt</title>
+  <link rel="stylesheet" href="assets/app.css" />
+  <meta name="description" content="Client-side file encryption and decryption. Your passphrase and plaintext never leave your browser." />
+</head>
+<body>
+  <header class="wrap">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">BC</div>
+      <div>
+        <h1>BlindCrypt</h1>
+        <p class="sub">Encrypt and decrypt locally in your browser. Server never receives your passphrase or plaintext.</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav class="tabs" role="tablist" aria-label="BlindCrypt tabs">
+      <button class="tab active" role="tab" aria-selected="true" data-tab="encrypt">Encrypt</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="decrypt">Decrypt</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="about">About</button>
+    </nav>
+
+    <section class="panel show" id="encrypt" role="tabpanel">
+      <h2>Encrypt a file</h2>
+
+      <div class="grid">
+        <div class="card">
+          <label class="label">1) Choose a file</label>
+          <input id="encFile" type="file" />
+          <p class="hint" id="encFileHint">Tip: Large files use more memory. Prefer smaller files for browser-only workflows.</p>
+        </div>
+
+        <div class="card">
+          <label class="label">2) Security level</label>
+          <select id="encLevel">
+            <option value="standard">Standard (fast)</option>
+            <option value="strong" selected>Strong (recommended)</option>
+            <option value="high">High (slower)</option>
+          </select>
+
+          <div class="kdfBox">
+            <div class="kdfRow">
+              <div>
+                <div class="kdfKey">KDF</div>
+                <div class="kdfVal">PBKDF2 (SHA-256)</div>
+              </div>
+              <div>
+                <div class="kdfKey">Iterations</div>
+                <div class="kdfVal" id="encIterLabel">600000</div>
+              </div>
+              <div>
+                <div class="kdfKey">Cipher</div>
+                <div class="kdfVal">AES-256-GCM</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="hint">This starter stays WebCrypto-native for GitHub Pages. For stronger GPU-resistant derivation, replace PBKDF2 with Argon2id via WASM.</p>
+        </div>
+
+        <div class="card">
+          <label class="label">3) Passphrase</label>
+          <div class="row">
+            <input id="encPass" type="password" placeholder="Enter passphrase" autocomplete="new-password" />
+            <button id="encShow" class="btn secondary" type="button">Show</button>
+          </div>
+
+          <div class="row">
+            <button id="genPass" class="btn" type="button">Generate passphrase</button>
+            <button id="copyPass" class="btn secondary" type="button">Copy</button>
+          </div>
+
+          <div class="row">
+            <input id="encConfirm" type="password" placeholder="Confirm passphrase" autocomplete="new-password" />
+          </div>
+
+          <p class="hint warn">If you lose the passphrase, the file cannot be recovered.</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="doEncrypt" class="btn primary" type="button">Encrypt and download</button>
+        <div class="status" id="encStatus" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="decrypt" role="tabpanel">
+      <h2>Decrypt a file</h2>
+
+      <div class="grid">
+        <div class="card">
+          <label class="label">1) Choose an encrypted file</label>
+          <input id="decFile" type="file" />
+          <p class="hint">BlindCrypt encrypted files contain a small header plus ciphertext.</p>
+        </div>
+
+        <div class="card">
+          <label class="label">2) Passphrase</label>
+          <div class="row">
+            <input id="decPass" type="password" placeholder="Enter passphrase" autocomplete="current-password" />
+            <button id="decShow" class="btn secondary" type="button">Show</button>
+          </div>
+          <p class="hint">Decryption will fail if the passphrase is wrong or the file was modified.</p>
+        </div>
+
+        <div class="card">
+          <label class="label">File info (after successful authentication)</label>
+          <div class="meta" id="decMeta">
+            <div class="metaRow"><span>Name</span><span class="mono" id="metaName">-</span></div>
+            <div class="metaRow"><span>Type</span><span class="mono" id="metaType">-</span></div>
+            <div class="metaRow"><span>Iterations</span><span class="mono" id="metaIter">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="doDecrypt" class="btn primary" type="button">Decrypt and download</button>
+        <div class="status" id="decStatus" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="about" role="tabpanel">
+      <h2>About</h2>
+      <div class="card">
+        <ul class="bullets">
+          <li>Encryption and decryption happen locally in your browser using WebCrypto.</li>
+          <li>Your passphrase and plaintext are not sent to any server.</li>
+          <li>Passphrase generator uses the 2048 word BIP39 English list.</li>
+          <li>Output format is versioned so you can extend it later.</li>
+        </ul>
+        <p class="hint">Security note: if the device is compromised, a web app cannot protect the data. Use trusted endpoints.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <span class="mono">BlindCrypt</span>
+    <span class="dot">•</span>
+    <span class="muted">Client-side crypto for file handoff</span>
+  </footer>
+
+  <script src="assets/wordlist.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
