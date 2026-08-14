@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
-import { extname, resolve, sep } from "node:path";
+import { readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
 
 const root = resolve(new URL("../dist", import.meta.url).pathname);
 const contentTypes = {
@@ -10,17 +10,33 @@ const contentTypes = {
   ".txt": "text/plain; charset=utf-8",
 };
 
+// The smoke server exposes only the exact files exercised by validation.
+// Request data is used solely as a map key and never becomes a filesystem path.
+const routes = new Map([
+  ["/", "index.html"],
+  ["/VERSION", "VERSION"],
+  ["/assets/app.js", "assets/app.js"],
+  ["/assets/crypto.js", "assets/crypto.js"],
+  ["/assets/passphrase.js", "assets/passphrase.js"],
+  ["/assets/wordlist.js", "assets/wordlist.js"],
+  ["/SHA256SUMS", "SHA256SUMS"],
+]);
+
 const server = createServer(async (request, response) => {
   try {
-    const url = new URL(request.url || "/", "http://127.0.0.1");
-    const relativePath = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname.slice(1));
-    const filePath = resolve(root, relativePath);
-    if (filePath !== root && !filePath.startsWith(`${root}${sep}`)) {
-      response.writeHead(400).end("Bad request");
+    if (request.method !== "GET") {
+      response.writeHead(405, { Allow: "GET" }).end("Method not allowed");
       return;
     }
-    const info = await stat(filePath);
-    if (!info.isFile()) throw new Error("Not a file");
+
+    const url = new URL(request.url || "/", "http://127.0.0.1");
+    const relativePath = routes.get(url.pathname);
+    if (!relativePath) {
+      response.writeHead(404).end("Not found");
+      return;
+    }
+
+    const filePath = resolve(root, relativePath);
     const body = await readFile(filePath);
     response.writeHead(200, {
       "Cache-Control": "no-store",
@@ -42,16 +58,21 @@ try {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Unable to determine smoke-test port");
   const base = `http://127.0.0.1:${address.port}`;
-  for (const path of ["/", "/VERSION", "/assets/app.js", "/assets/crypto.js", "/assets/passphrase.js", "/assets/wordlist.js", "/SHA256SUMS"]) {
+  for (const path of routes.keys()) {
     const response = await fetch(`${base}${path}`, { redirect: "error" });
     if (!response.ok) throw new Error(`${path} returned ${response.status}`);
     const body = await response.arrayBuffer();
-    if (body.byteLength === 0 && path !== "/.nojekyll") throw new Error(`${path} is empty`);
+    if (body.byteLength === 0) throw new Error(`${path} is empty`);
   }
-  const traversal = await fetch(`${base}/..%2Fpackage.json`, { redirect: "error" });
-  if (traversal.status !== 400 && traversal.status !== 404) {
-    throw new Error(`Traversal request returned ${traversal.status}`);
+
+  for (const path of ["/..%2Fpackage.json", "/assets%2F..%2FVERSION", "/not-allowlisted.txt"]) {
+    const response = await fetch(`${base}${path}`, { redirect: "error" });
+    if (response.status !== 404) throw new Error(`${path} returned ${response.status}`);
   }
+
+  const post = await fetch(`${base}/`, { method: "POST", redirect: "error" });
+  if (post.status !== 405) throw new Error(`POST request returned ${post.status}`);
+
   console.log("Built artifact HTTP smoke test passed.");
 } finally {
   await new Promise((resolveClose, rejectClose) => {

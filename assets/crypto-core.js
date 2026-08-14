@@ -1,7 +1,7 @@
 // @ts-check
 
 /** BlindCrypt application version. */
-export const APP_VERSION = "01.01.00";
+export const APP_VERSION = "01.01.01";
 
 /** New files are written with format v3. */
 export const FORMAT_VERSION = 3;

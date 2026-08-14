@@ -2,10 +2,10 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "BlindCrypt-01.01.00",
-  "documentNamespace": "https://github.com/paulkakell/BlindCrypt/spdx/01.01.00/2026-08-13",
+  "name": "BlindCrypt-01.01.01",
+  "documentNamespace": "https://github.com/paulkakell/BlindCrypt/spdx/01.01.01/2026-08-13",
   "creationInfo": {
-    "created": "2026-08-14T01:59:22Z",
+    "created": "2026-08-14T03:30:00Z",
     "creators": [
       "Tool: BlindCrypt release validation"
     ]
@@ -14,7 +14,7 @@
     {
       "name": "BlindCrypt",
       "SPDXID": "SPDXRef-Package-BlindCrypt",
-      "versionInfo": "01.01.00",
+      "versionInfo": "01.01.01",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
@@ -25,7 +25,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:github/paulkakell/BlindCrypt@01.01.00"
+          "referenceLocator": "pkg:github/paulkakell/BlindCrypt@01.01.01"
         }
       ]
     },

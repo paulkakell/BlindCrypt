@@ -1,6 +1,6 @@
 # BlindCrypt
 
-BlindCrypt is a static browser application for authenticated client-side file encryption. Version `01.01.00` writes format v3 containers and reads format v1, v2, and v3 files.
+BlindCrypt is a static browser application for authenticated client-side file encryption. Version `01.01.01` writes format v3 containers and reads format v1, v2, and v3 files.
 
 The application has no runtime dependencies, backend, account system, telemetry, analytics, or network requests. The hosting server delivers static files. Encryption and decryption use the browser WebCrypto implementation.
 
@@ -84,11 +84,11 @@ npm test           # unit, integration, and regression tests
 npm run security   # local SAST and dependency allowlist checks
 npm run config     # workflow, version, default, and policy checks
 npm run build      # clean static artifact plus SHA256SUMS
-npm run smoke      # serve and retrieve the built artifact over local HTTP
+npm run smoke      # allowlisted local HTTP retrieval of the built artifact
 npm run perf       # 1 MiB authenticated round-trip performance smoke test
 ```
 
-`npm run validate` executes all commands in release order.
+`npm run validate` executes all commands in release order. The smoke server uses a fixed route allowlist. Request paths never become filesystem paths, preventing path traversal and filesystem check/use races in the validation utility.
 
 ## CI and deployment
 
@@ -102,9 +102,9 @@ npm run perf       # 1 MiB authenticated round-trip performance smoke test
 
 BlindCrypt uses `xx.xx.xx` as `<Release>.<Feature Update>.<Bug Fix>`. The repository version is stored in `VERSION` and exposed through `APP_VERSION`.
 
-Development commits carry the next version but are not tagged. After the validated commit reaches `main`, create the matching immutable tag, such as `v01.01.00`, and attach the `dist/` artifact, `SHA256SUMS`, SPDX SBOM, release notes, and validation evidence. Do not tag a commit that did not pass the full workflow.
+Development commits carry the next version but are not tagged. After the validated commit reaches `main`, create the matching immutable tag, such as `v01.01.01`, and attach the `dist/` artifact, `SHA256SUMS`, SPDX SBOM, release notes, and validation evidence. Do not tag a commit that did not pass the full workflow.
 
-See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE_01.01.00.md](docs/RELEASE_01.01.00.md), [COMMIT_NOTES.md](COMMIT_NOTES.md), [docs/VALIDATION_01.01.00.md](docs/VALIDATION_01.01.00.md), [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), and [docs/ROLLBACK.md](docs/ROLLBACK.md).
+See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE_01.01.01.md](docs/RELEASE_01.01.01.md), [COMMIT_NOTES.md](COMMIT_NOTES.md), [docs/VALIDATION_01.01.01.md](docs/VALIDATION_01.01.01.md), [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), and [docs/ROLLBACK.md](docs/ROLLBACK.md).
 
 ## Security reports
 

@@ -2,13 +2,42 @@
 
 BlindCrypt versions use `xx.xx.xx` as `<Release>.<Feature Update>.<Bug Fix>`.
 
+## [01.01.01] - 2026-08-13
+
+Status: development branch candidate. Release tag reserved: `v01.01.01` after merge and successful protected validation.
+
+References: `GHAS-PR-1`, CodeQL alert 1, PR #1.
+
+Baseline: `b57c01dd515011273832064f0645842655196be7`.
+
+### Security fix
+
+- Replaced the validation HTTP server's `stat()` followed by `readFile()` sequence, which CodeQL identified as a potential filesystem check/use race.
+- Replaced request-derived filesystem resolution with an exact route allowlist. Request path data is now used only as a map key and never becomes a filesystem path.
+- Added explicit rejection for unlisted paths, traversal-shaped requests, and non-GET methods.
+
+### Tests and controls
+
+- Added regression tests that prohibit reintroduction of `stat()` checks, dynamic path decoding, and request-derived file paths in the smoke server.
+- Retained the runtime smoke checks for every expected build asset and added negative requests for traversal and unlisted paths.
+- Updated the application version, changelog, SBOM, security policy, release notes, validation record, release checklist, README, and commit notes.
+
+### Classification and compatibility
+
+- Change type: security bug fix.
+- Breaking: no.
+- Encryption format: unchanged at v3.
+- Reader compatibility: unchanged for v1, v2, and v3.
+- Runtime dependencies: unchanged at zero.
+- Database, backend, environment, and configuration migration: not applicable.
+
 ## [01.01.00] - 2026-08-13
 
-Status: development branch candidate. Release tag reserved: `v01.01.00` after merge and successful protected validation.
+Status: superseded before release by `01.01.01`.
 
-Reference: `SEC-AUDIT-2026-08-13`
+Reference: `SEC-AUDIT-2026-08-13`.
 
-Baseline: `4ed8c157c6015340b363848c12527d9499fb8d69`
+Baseline: `4ed8c157c6015340b363848c12527d9499fb8d69`.
 
 ### Security fixes
 

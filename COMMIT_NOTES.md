@@ -1,21 +1,20 @@
-# Commit notes for 01.01.00
+# Commit notes for 01.01.01
 
 ```text
-security: release BlindCrypt 01.01.00 with authenticated format v3
+security: fix smoke-server filesystem race for 01.01.01
 
-Release: 01.01.00
-Tag after protected merge: v01.01.00
-Refs: SEC-AUDIT-2026-08-13
-Baseline: 4ed8c157c6015340b363848c12527d9499fb8d69
+Release: 01.01.01
+Tag after protected merge: v01.01.01
+Refs: GHAS-PR-1, CodeQL alert 1, PR #1
+Baseline: b57c01dd515011273832064f0645842655196be7
 
-- authenticate the exact v3 header and record context with AES-GCM AAD
-- encrypt and validate fixed-size filename and media-type metadata
-- reject truncation, trailing bytes, malformed geometry, and excessive KDF inputs
-- cap plaintext at 64 MiB and process source data in bounded slices
-- retain bounded v1/v2 reads with neutral legacy output and explicit warnings
-- reject four-word and repetitive passphrases without assigning custom entropy claims
-- add CSP, tests, type checking, SAST, CodeQL, locked builds, and release docs
+- replace stat-then-read validation with a fixed route allowlist
+- prevent request paths from becoming filesystem paths
+- reject traversal-shaped, unlisted, and non-GET requests
+- add regression coverage for the CodeQL finding
+- update version, changelog, SBOM, security policy, release notes, validation, and rollback evidence
 
-Change type: breaking producer format, additive reader support, security fixes
-Rollback: preserve the v3 reader; revert deployment or interface changes separately
+Change type: non-breaking security bug fix
+Compatibility: format v3 writer and v1/v2/v3 reader behavior unchanged
+Rollback: revert the 01.01.01 commits to the validated 01.01.00 candidate; retain format v3 support
 ```

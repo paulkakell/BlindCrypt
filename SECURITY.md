@@ -4,8 +4,9 @@
 
 | Version | Status |
 |---|---|
-| 01.01.00 development candidate | Security fixes accepted on `dev` |
-| Unversioned baseline | Unsupported after 01.01.00 is released |
+| 01.01.01 development candidate | Security fixes accepted on `dev` |
+| 01.01.00 development candidate | Superseded by 01.01.01 before release |
+| Unversioned baseline | Unsupported after 01.01.01 is released |
 
 ## Reporting a vulnerability
 
