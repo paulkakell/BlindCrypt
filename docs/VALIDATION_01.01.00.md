@@ -70,6 +70,16 @@ Development dependency: TypeScript 5.8.3, exact-pinned in the lock file. Install
 
 The clean `dist/` artifact contains the application, version, license, SPDX SBOM, `.nojekyll`, and `SHA256SUMS`. The workflow retains the artifact by commit SHA.
 
-## Pending hosted checks
+## Hosted validation
 
-This local record is not a substitute for GitHub Actions. Promotion remains blocked until the pushed commit reports successful **Security validation** and **CodeQL** results.
+Code commit: `01116bc7b7613980ef14a19ad082e3ecab6edca5`
+
+- **Security validation** run `31763503108`: passed.
+- Fresh `npm ci --ignore-scripts`: passed.
+- `npm audit --audit-level=high`: passed with zero vulnerabilities.
+- Complete `npm run validate`: passed.
+- Validated artifact: `blindcrypt-01116bc7b7613980ef14a19ad082e3ecab6edca5`.
+- Artifact digest: `sha256:dbd4c61f31fc539e9c62c9552df7e4b7d612837f90e0074f7ba4a4e6c9d636c3`.
+- **CodeQL** run `31763503112`: passed with the extended security query suite.
+
+Promotion remains blocked on the repository settings, protected review, production Pages deployment, and release-tag steps documented in the release checklist.

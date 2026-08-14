@@ -34,7 +34,7 @@ Local validation environment:
 
 Local performance smoke result: 1,048,576 input bytes, 1,049,908 encrypted bytes, 471.5 ms encryption, and 453.3 ms decryption on the recorded host.
 
-The GitHub workflow repeats installation from `package-lock.json`, runs `npm audit --audit-level=high`, executes `npm run validate`, runs CodeQL, and retains the validated artifact. Release is blocked until those checks succeed on the final commit.
+GitHub Security validation run `31763503108` passed on code commit `01116bc7b7613980ef14a19ad082e3ecab6edca5`. It completed a fresh locked install, reported zero npm vulnerabilities, executed the complete validation suite, and retained artifact `blindcrypt-01116bc7b7613980ef14a19ad082e3ecab6edca5` with digest `sha256:dbd4c61f31fc539e9c62c9552df7e4b7d612837f90e0074f7ba4a4e6c9d636c3`. CodeQL run `31763503112` also passed. Production release remains blocked on protected review, repository settings, Pages promotion, and the release tag.
 
 ## Dependency validation
 
@@ -72,13 +72,13 @@ The browser application emits no console logs, network telemetry, filenames, pas
 
 ## Promotion checklist
 
-1. Confirm `dev` commit and diff contain only intended files.
-2. Confirm Security validation and CodeQL succeed.
+1. Confirm `dev` commit and diff contain only intended files. Completed for the validated code commit.
+2. Confirm Security validation and CodeQL succeed. Completed on runs `31763503108` and `31763503112`.
 3. Apply required repository rules and GitHub Pages settings.
 4. Merge through a protected pull request.
 5. Confirm the `main` Pages workflow deploys the validated artifact.
 6. Create annotated tag `v01.01.00` on the deployed commit.
-7. Attach the artifact, checksum, and release notes.
+7. Attach the artifact, checksum, SBOM, and release notes.
 8. Preserve the previous artifact and rollback instructions.
 
 ## Commit notes

@@ -20,8 +20,8 @@ This checklist is mandatory for each BlindCrypt version. Record evidence in the 
 - [x] Regression and tamper tests pass.
 - [x] Performance smoke test passes.
 - [x] Built-artifact HTTP smoke test passes.
-- [ ] Hosted Security validation workflow passes on the final commit.
-- [ ] Hosted CodeQL workflow passes on the final commit.
+- [x] Hosted Security validation passed on code commit `01116bc7b7613980ef14a19ad082e3ecab6edca5` (run `31763503108`).
+- [x] Hosted CodeQL passed on code commit `01116bc7b7613980ef14a19ad082e3ecab6edca5` (run `31763503112`).
 
 ## Static quality and security
 
@@ -38,7 +38,7 @@ This checklist is mandatory for each BlindCrypt version. Record evidence in the 
 - [x] TypeScript build dependency is exact-pinned with lock integrity.
 - [x] GitHub Actions are pinned to full commit SHAs.
 - [x] GitHub Advisory Database query reports no advisory affecting TypeScript 5.8.3 at review time.
-- [ ] Hosted `npm audit --audit-level=high` passes from a fresh install.
+- [x] Hosted `npm ci --ignore-scripts` and `npm audit --audit-level=high` passed with zero vulnerabilities on run `31763503108`.
 - [x] Clean `dist/` build produces checksums, license, and SPDX SBOM.
 
 ## Configuration and data
