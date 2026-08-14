@@ -1,0 +1,7 @@
+* @paulkakell
+/assets/crypto*.js @paulkakell
+/assets/passphrase.js @paulkakell
+/.github/workflows/ @paulkakell
+/SECURITY.md @paulkakell
+/docs/FORMAT.md @paulkakell
+/docs/THREAT_MODEL.md @paulkakell

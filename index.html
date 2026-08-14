@@ -1,170 +1,188 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'none'; font-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'; media-src 'none'; manifest-src 'self'">
+  <meta name="description" content="Client-side authenticated file encryption and decryption. Passphrases and plaintext remain on the device.">
   <title>BlindCrypt</title>
-  <link rel="stylesheet" href="assets/app.css" />
-  <meta name="description" content="Client-side file encryption and decryption. Your passphrase and plaintext never leave your browser." />
+  <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
-  <header class="wrap">
+  <header class="wrap siteHeader">
     <div class="brand">
       <div class="logo" aria-hidden="true">BC</div>
       <div>
         <h1>BlindCrypt</h1>
-        <p class="sub">Encrypt and decrypt locally in your browser. Server never receives your passphrase or plaintext.</p>
+        <p class="sub">Authenticated file encryption in the browser. The server receives neither the passphrase nor plaintext.</p>
       </div>
     </div>
   </header>
 
   <main class="wrap">
-    <nav class="tabs" role="tablist" aria-label="BlindCrypt tabs">
-      <button class="tab active" role="tab" aria-selected="true" data-tab="encrypt">Encrypt</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="decrypt">Decrypt</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="about">About</button>
+    <nav class="tabs" role="tablist" aria-label="BlindCrypt operations">
+      <button id="tab-encrypt" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="panel-encrypt" data-tab="encrypt">Encrypt</button>
+      <button id="tab-decrypt" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-decrypt" data-tab="decrypt" tabindex="-1">Decrypt</button>
+      <button id="tab-about" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-about" data-tab="about" tabindex="-1">About</button>
     </nav>
 
-    <section class="panel show" id="encrypt" role="tabpanel">
+    <section id="panel-encrypt" class="panel" role="tabpanel" aria-labelledby="tab-encrypt">
       <h2>Encrypt a file</h2>
+      <p class="sectionIntro">New files use BlindCrypt format v3. The public header, encrypted metadata, record order, record lengths, and every ciphertext record are authenticated.</p>
 
       <div class="grid">
         <div class="card">
-          <label class="label">1) Choose a file</label>
-          <input id="encFile" type="file" />
-          <p class="hint" id="encFileHint">Tip: Large files use more memory. Prefer smaller files for browser-only workflows.</p>
+          <label class="label" for="encFile">1. Choose a file</label>
+          <input id="encFile" type="file">
+          <p class="hint">Maximum plaintext size: <strong id="maxFileSize">64 MiB</strong>. The limit controls browser memory exposure.</p>
         </div>
 
         <div class="card">
-          <label class="label">2) Security level</label>
+          <label class="label" for="encLevel">2. Security level</label>
           <select id="encLevel">
-            <option value="critical" selected>Critical (slowest)</option>
-            <option value="high">High (slower)</option>
-            <option value="strong">Strong (recommended)</option>
-            <option value="standard">Standard (fast)</option>
+            <option value="standard">Standard: 600,000 iterations, 6 generated words</option>
+            <option value="strong" selected>Strong: 900,000 iterations, 8 generated words</option>
+            <option value="high">High: 1,200,000 iterations, 10 generated words</option>
+            <option value="critical">Critical: 2,400,000 iterations, 16 generated words</option>
           </select>
 
-          <div class="kdfBox">
-            <div class="kdfRow">
-              <div>
-                <div class="kdfKey">KDF</div>
-                <div class="kdfVal">PBKDF2 (SHA-256)</div>
-              </div>
-              <div>
-                <div class="kdfKey">Iterations</div>
-                <div class="kdfVal" id="encIterLabel">600000</div>
-              </div>
-              <div>
-                <div class="kdfKey">Cipher</div>
-                <div class="kdfVal">AES-256-GCM</div>
-              </div>
+          <dl class="kdfGrid">
+            <div>
+              <dt>KDF</dt>
+              <dd>PBKDF2, SHA-256</dd>
             </div>
-          </div>
-
-          <p class="hint">This starter stays WebCrypto-native for GitHub Pages. For stronger GPU-resistant derivation, replace PBKDF2 with Argon2id via WASM.</p>
+            <div>
+              <dt>Iterations</dt>
+              <dd id="encIterLabel">900,000</dd>
+            </div>
+            <div>
+              <dt>Generated words</dt>
+              <dd id="encWordLabel">8</dd>
+            </div>
+            <div>
+              <dt>Cipher</dt>
+              <dd>AES-256-GCM</dd>
+            </div>
+          </dl>
         </div>
 
         <div class="card">
-          <label class="label">3) Passphrase</label>
+          <label class="label" for="encPass">3. Passphrase</label>
           <div class="row">
-            <input id="encPass" type="password" placeholder="Enter passphrase" autocomplete="new-password" />
+            <input id="encPass" type="password" placeholder="Enter or generate a passphrase" autocomplete="new-password" spellcheck="false">
             <button id="encShow" class="btn secondary" type="button">Show</button>
           </div>
 
-          <div class="row">
+          <div class="row buttonRow">
             <button id="genPass" class="btn" type="button">Generate passphrase</button>
             <button id="copyPass" class="btn secondary" type="button">Copy</button>
           </div>
 
           <div class="row">
-            <input id="encConfirm" type="password" placeholder="Confirm passphrase" autocomplete="new-password" />
+            <input id="encConfirm" type="password" placeholder="Confirm passphrase" autocomplete="new-password" spellcheck="false">
           </div>
 
-          <div class="strength" id="passStrength" aria-live="polite">
+          <div class="strength" aria-live="polite">
             <div class="strengthTop">
-              <span class="strengthLabel">Passphrase strength</span>
-              <span class="strengthValue mono" id="passStrengthText">-</span>
+              <span>Passphrase assessment</span>
+              <strong id="passStrengthText">Empty</strong>
             </div>
-            <div class="strengthTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-              <div class="strengthFill" id="passStrengthFill" style="width:0%"></div>
-            </div>
+            <progress id="passStrengthBar" max="100" value="0" hidden>0%</progress>
+            <p id="passStrengthHint" class="hint">Enter a passphrase or generate one.</p>
           </div>
 
-          <p class="hint warn">If you lose the passphrase, the file cannot be recovered.</p>
+          <p class="hint warn">Store the passphrase before encryption. BlindCrypt has no recovery mechanism.</p>
         </div>
       </div>
 
-      
       <div class="actions">
-        <div class="actionCol">
-          <button id="doEncrypt" class="btn primary" type="button">Encrypt and download</button>
-          <div class="pwrap">
-            <div class="ptrack"><div class="pbar" id="encProgBar" style="width:0%"></div></div>
-            <div class="ptext mono" id="encProgText"></div>
-          </div>
+        <button id="doEncrypt" class="btn primary" type="button">Encrypt and download</button>
+        <div class="progressGroup" aria-live="polite">
+          <progress id="encProgress" max="100" value="0">0%</progress>
+          <span id="encProgressText" class="mono"></span>
         </div>
-        <div class="status" id="encStatus" aria-live="polite"></div>
+        <div id="encStatus" class="status" aria-live="polite"></div>
       </div>
     </section>
 
-    <section class="panel" id="decrypt" role="tabpanel">
+    <section id="panel-decrypt" class="panel" role="tabpanel" aria-labelledby="tab-decrypt" hidden>
       <h2>Decrypt a file</h2>
+      <p class="sectionIntro">Format v3 verifies the complete container before download. Legacy v1 and v2 files remain readable with explicit limitations.</p>
 
       <div class="grid">
         <div class="card">
-          <label class="label">1) Choose an encrypted file</label>
-          <input id="decFile" type="file" />
-          <p class="hint">BlindCrypt encrypted files contain a small header plus ciphertext.</p>
+          <label class="label" for="decFile">1. Choose an encrypted file</label>
+          <input id="decFile" type="file" accept=".blindcrypt,application/octet-stream">
+          <p class="hint">Malformed sizes, excessive KDF settings, inconsistent records, truncation, and trailing data are rejected before costly processing where possible.</p>
         </div>
 
         <div class="card">
-          <label class="label">2) Passphrase</label>
+          <label class="label" for="decPass">2. Passphrase</label>
           <div class="row">
-            <input id="decPass" type="password" placeholder="Enter passphrase" autocomplete="current-password" />
+            <input id="decPass" type="password" placeholder="Enter passphrase" autocomplete="current-password" spellcheck="false">
             <button id="decShow" class="btn secondary" type="button">Show</button>
           </div>
-          <p class="hint">Decryption will fail if the passphrase is wrong or the file was modified.</p>
+          <p class="hint">Format v3 applies NFC normalization. Legacy formats use the passphrase exactly as entered.</p>
         </div>
 
         <div class="card">
-          <label class="label">File info (after successful authentication)</label>
-          <div class="meta" id="decMeta">
-            <div class="metaRow"><span>Name</span><span class="mono" id="metaName">-</span></div>
-            <div class="metaRow"><span>Type</span><span class="mono" id="metaType">-</span></div>
-            <div class="metaRow"><span>Iterations</span><span class="mono" id="metaIter">-</span></div>
-          </div>
+          <span class="label">Authenticated file information</span>
+          <dl class="meta">
+            <div><dt>Format</dt><dd id="metaFormat">-</dd></div>
+            <div><dt>Name</dt><dd id="metaName" class="mono">-</dd></div>
+            <div><dt>Declared type</dt><dd id="metaType" class="mono">-</dd></div>
+            <div><dt>Integrity</dt><dd id="metaIntegrity">-</dd></div>
+          </dl>
         </div>
       </div>
 
       <div class="actions">
         <button id="doDecrypt" class="btn primary" type="button">Decrypt and download</button>
-        <div class="status" id="decStatus" aria-live="polite"></div>
+        <div class="progressGroup" aria-live="polite">
+          <progress id="decProgress" max="100" value="0">0%</progress>
+          <span id="decProgressText" class="mono"></span>
+        </div>
+        <div id="decStatus" class="status" aria-live="polite"></div>
       </div>
     </section>
 
-    <section class="panel" id="about" role="tabpanel">
-      <h2>About</h2>
-      <div class="card">
-        <ul class="bullets">
-          <li>Encryption and decryption happen locally in your browser using WebCrypto.</li>
-          <li>Your passphrase and plaintext are not sent to any server.</li>
-          <li>Passphrase generator uses the 2048 word BIP39 English list.</li>
-          <li>Output format is versioned so you can extend it later.</li>
-        </ul>
-        <p class="hint">Security note: if the device is compromised, a web app cannot protect the data. Use trusted endpoints.</p>
+    <section id="panel-about" class="panel" role="tabpanel" aria-labelledby="tab-about" hidden>
+      <h2>Security model</h2>
+      <div class="aboutGrid">
+        <article class="card">
+          <h3>Protected</h3>
+          <ul class="bullets">
+            <li>Encryption and decryption run locally through WebCrypto.</li>
+            <li>Format v3 authenticates the exact public header as additional data for every record.</li>
+            <li>Filename and media type are stored inside a fixed-size encrypted metadata record.</li>
+            <li>Strict limits constrain headers, KDF cost, file size, record count, and passphrase length.</li>
+            <li>The application contains no telemetry, network requests, or runtime dependencies.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Not protected</h3>
+          <ul class="bullets">
+            <li>A compromised device, browser, extension, or hosting origin can capture plaintext or passphrases.</li>
+            <li>File size and public KDF parameters remain visible.</li>
+            <li>Legacy v1 and v2 metadata and whole-file completeness cannot be retroactively authenticated.</li>
+            <li>Clipboard contents may be exposed to other applications after manual copy.</li>
+          </ul>
+        </article>
       </div>
+      <p class="hint">Review the repository threat model and format specification before using BlindCrypt for high-value data.</p>
     </section>
   </main>
 
   <footer class="wrap footer">
-    <span class="mono">BlindCrypt</span>
-    <span class="dot">•</span>
-    <span class="muted">Client-side crypto for file handoff</span>
-    <span class="dot">•</span>
-    <a class="muted" href="https://github.com/paulkakell/BlindCrypt" target="_blank" rel="noopener">Repository</a>
+    <span class="mono">BlindCrypt <span data-app-version>01.01.01</span></span>
+    <span aria-hidden="true">•</span>
+    <span>Client-side authenticated file encryption</span>
+    <span aria-hidden="true">•</span>
+    <a href="https://github.com/paulkakell/BlindCrypt" target="_blank" rel="noopener noreferrer">Repository</a>
   </footer>
 
   <script src="assets/wordlist.js"></script>
-  <script src="assets/app.js"></script>
+  <script type="module" src="assets/app.js"></script>
 </body>
 </html>
