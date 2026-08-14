@@ -15,19 +15,19 @@ This checklist is mandatory for each BlindCrypt version. Record evidence in the 
 
 ## Automated validation
 
-- [ ] Unit tests pass.
-- [ ] Integration tests pass.
-- [ ] Regression tests, including the smoke-server race policy, pass.
-- [ ] Performance smoke test passes.
-- [ ] Built-artifact HTTP smoke test passes.
-- [ ] Hosted Security validation passes on the 01.01.01 code commit.
-- [ ] Hosted CodeQL passes and alert 1 is resolved.
+- [x] Unit tests pass.
+- [x] Integration and legacy compatibility tests pass.
+- [x] Regression tests, including the smoke-server race policy and deterministic header tampering, pass.
+- [x] Performance smoke test passes.
+- [x] Built-artifact HTTP smoke test passes.
+- [x] Hosted Security validation passed on commit `a0ca628f36b609856fd14292088007f26ebc9e97` in run `31767647395`.
+- [x] Hosted CodeQL passed in run `31767647419` and the alert 1 review thread was automatically resolved.
 
 ## Static quality and security
 
-- [ ] Syntax and policy lint pass.
-- [ ] Strict type checking passes.
-- [ ] Local SAST passes.
+- [x] Syntax and policy lint pass across 19 JavaScript files.
+- [x] Strict type checking passes.
+- [x] Local SAST passes.
 - [x] The smoke server uses fixed routes and no request-derived filesystem path.
 - [x] Authentication inputs, authorization scope, input bounds, logging, secrets, and deployment permissions reviewed.
 - [x] No backend authentication or authorization surface exists.
@@ -38,8 +38,9 @@ This checklist is mandatory for each BlindCrypt version. Record evidence in the 
 - [x] Runtime dependency count remains zero.
 - [x] TypeScript 5.8.3 remains exact-pinned with lock integrity.
 - [x] GitHub Actions remain pinned to full commit SHAs.
-- [ ] Hosted `npm ci --ignore-scripts` and `npm audit --audit-level=high` pass with zero high-severity vulnerabilities.
-- [ ] Clean `dist/` build produces checksums, license, and SPDX SBOM.
+- [x] Hosted `npm ci --ignore-scripts` and `npm audit --audit-level=high` passed with zero vulnerabilities.
+- [x] Clean `dist/` build produced 14 release files, checksums, license, and SPDX SBOM.
+- [x] Artifact `blindcrypt-692edf143bc4744637bdabe5bec760423688a4c7` retained with digest `sha256:d9d0c8a5c23d1cd24953460ccbd80eefa36275b9a629a171c8ef9eea37b7252b`.
 
 ## Configuration and data
 

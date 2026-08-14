@@ -19,6 +19,7 @@ Baseline: `b57c01dd515011273832064f0645842655196be7`.
 ### Tests and controls
 
 - Added regression tests that prohibit reintroduction of `stat()` checks, dynamic path decoding, and request-derived file paths in the smoke server.
+- Made the public-header tamper fixture choose a guaranteed-different writer value so release version changes cannot turn the security mutation into a no-op.
 - Retained the runtime smoke checks for every expected build asset and added negative requests for traversal and unlisted paths.
 - Updated the application version, changelog, SBOM, security policy, release notes, validation record, release checklist, README, and commit notes.
 

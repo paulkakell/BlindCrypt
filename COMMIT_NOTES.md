@@ -12,6 +12,7 @@ Baseline: b57c01dd515011273832064f0645842655196be7
 - prevent request paths from becoming filesystem paths
 - reject traversal-shaped, unlisted, and non-GET requests
 - add regression coverage for the CodeQL finding
+- make authenticated-header tamper coverage deterministic across version increments
 - update version, changelog, SBOM, security policy, release notes, validation, and rollback evidence
 
 Change type: non-breaking security bug fix
