@@ -1,0 +1,23 @@
+{
+  "name": "blindcrypt",
+  "private": true,
+  "type": "module",
+  "description": "Dependency-free browser application for authenticated client-side file encryption.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "node --test tests/*.test.mjs",
+    "security": "node scripts/sast.mjs",
+    "config": "node scripts/config-check.mjs",
+    "build": "node scripts/build.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "perf": "node scripts/perf.mjs",
+    "validate": "npm run lint && npm run typecheck && npm test && npm run security && npm run config && npm run build && npm run smoke && npm run perf"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3"
+  }
+}

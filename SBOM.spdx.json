@@ -1,0 +1,63 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "BlindCrypt-01.01.00",
+  "documentNamespace": "https://github.com/paulkakell/BlindCrypt/spdx/01.01.00/2026-08-13",
+  "creationInfo": {
+    "created": "2026-08-14T01:59:22Z",
+    "creators": [
+      "Tool: BlindCrypt release validation"
+    ]
+  },
+  "packages": [
+    {
+      "name": "BlindCrypt",
+      "SPDXID": "SPDXRef-Package-BlindCrypt",
+      "versionInfo": "01.01.00",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) 2026",
+      "primaryPackagePurpose": "APPLICATION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/paulkakell/BlindCrypt@01.01.00"
+        }
+      ]
+    },
+    {
+      "name": "TypeScript",
+      "SPDXID": "SPDXRef-Package-TypeScript",
+      "versionInfo": "5.8.3",
+      "downloadLocation": "https://registry.npmjs.org/typescript/-/typescript-5.8.3.tgz",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "primaryPackagePurpose": "BUILD_TOOL",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/typescript@5.8.3"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-BlindCrypt"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-TypeScript",
+      "relationshipType": "BUILD_TOOL_OF",
+      "relatedSpdxElement": "SPDXRef-Package-BlindCrypt"
+    }
+  ]
+}
