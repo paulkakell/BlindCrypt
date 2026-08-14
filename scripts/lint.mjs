@@ -29,7 +29,12 @@ for (const file of scripts) {
   if (result.status !== 0) fail(`${relative(root, file)}: ${result.stderr.trim()}`);
 }
 
-const productionScripts = scripts.filter((file) => relative(root, file).startsWith("assets/"));
+const productionScripts = scripts.filter((file) => {
+  const path = relative(root, file);
+  // The bundled word list is validated below as static data. Words such as
+  // "fetch" are not executable API references and must not trigger sink scans.
+  return path.startsWith("assets/") && path !== "assets/wordlist.js";
+});
 const forbiddenPatterns = [
   [/(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write)\b/u, "unsafe DOM HTML sink"],
   [/\beval\s*\(|\bnew\s+Function\b/u, "dynamic code execution"],

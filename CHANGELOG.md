@@ -28,6 +28,7 @@ Baseline: `4ed8c157c6015340b363848c12527d9499fb8d69`
 - Added read compatibility for v1, v2, and v3 through a single bounded parser.
 - Added unit, integration, regression, tamper, normalization, and performance tests.
 - Added strict JavaScript type checking, custom linting, local SAST, configuration validation, reproducible static builds, an HTTP artifact smoke test, SHA-256 manifests, an SPDX SBOM, dependency auditing, and CodeQL.
+- Classified the bundled 2,048-word list as separately validated static data so security lint does not mistake dictionary words such as `fetch` for executable network APIs.
 - Added pinned GitHub Actions workflows for validation, scanning, artifact retention, and Pages deployment.
 - Added version, format, architecture, API, threat-model, validation, release, rollback, repository-settings, commit-note, and security-policy documentation.
 
