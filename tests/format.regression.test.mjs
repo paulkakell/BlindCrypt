@@ -26,7 +26,7 @@ before(async () => {
 
 test("v3 rejects authenticated public-header tampering", async () => {
   const tampered = await mutateV3Header(encrypted.blob, (header) => {
-    header.writer = "01.01.01";
+    header.writer = header.writer === "99.99.99" ? "98.98.98" : "99.99.99";
   });
   await assert.rejects(
     decryptBlobAny(tampered, passphrase),
