@@ -1,20 +1,14 @@
 // @ts-check
-
 import {
-  APP_VERSION,
-  BlindCryptError,
-  LEVELS,
-  LIMITS,
-  decryptBlobAny,
-  encryptBlobV3,
-  sanitizeFilename,
+  APP_VERSION, BlindCryptError, LEVELS, LIMITS, MAX_CONTAINER_SIZE, MAX_STREAM_CONTAINER_SIZE,
+  MAX_STREAM_PLAINTEXT_SIZE, encryptBlobV3, decryptBlobAny, verifyV3, encryptV3ToSink,
+  decryptV3ToSink, sanitizeFilename,
 } from "./crypto.js";
-import {
-  assessPassphrase,
-  buildWordSet,
-  generatePassphrase,
-  validateNewPassphrase,
-} from "./passphrase.js";
+import { assessPassphrase, buildWordSet, generatePassphrase } from "./passphrase.js";
+import { encryptedFilename, processQueue, encryptText, decryptText, reencrypt, validateSecret } from "./features.js";
+import { generateIdentity, importRecipient, unlockIdentity, encryptForRecipient, decryptForRecipient,
+  MAX_RECIPIENT_BYTES, MAX_RECIPIENT_ENVELOPE, MAX_IDENTITY_BYTES } from "./recipients.js";
+import { initializeOffline } from "./offline.js";
 
 /** @param {string} id */
 function element(id) {
@@ -22,332 +16,307 @@ function element(id) {
   if (!found) throw new Error(`Missing required element: ${id}`);
   return found;
 }
-
 /** @param {string} id */
-function input(id) {
-  return /** @type {HTMLInputElement} */ (element(id));
-}
-
+function input(id) { return /** @type {HTMLInputElement} */ (element(id)); }
 /** @param {string} id */
-function select(id) {
-  return /** @type {HTMLSelectElement} */ (element(id));
-}
-
+function text(id) { return /** @type {HTMLTextAreaElement} */ (element(id)); }
 /** @param {string} id */
-function button(id) {
-  return /** @type {HTMLButtonElement} */ (element(id));
-}
-
+function button(id) { return /** @type {HTMLButtonElement} */ (element(id)); }
 /** @param {string} id */
-function progress(id) {
-  return /** @type {HTMLProgressElement} */ (element(id));
-}
-
-const bundledWords = /** @type {unknown} */ (Reflect.get(globalThis, "WORDS"));
-if (!Array.isArray(bundledWords)) throw new Error("Bundled word list is unavailable");
-const words = /** @type {string[]} */ (bundledWords);
+function level(id) { return /** @type {keyof typeof LEVELS} */ (/** @type {HTMLSelectElement} */ (element(id)).value); }
+const words = /** @type {string[]} */ (Reflect.get(globalThis, "WORDS"));
 const wordSet = buildWordSet(words);
+let busy = false;
+/** @type {AbortController | null} */
+let controller = null;
+/** @type {Map<string, File[]>} */
+const dropped = new Map();
 
-/**
- * @param {HTMLElement} target
- * @param {string} message
- * @param {"info" | "good" | "bad" | "warn"} [kind]
- */
-function setStatus(target, message, kind = "info") {
-  target.textContent = message;
-  target.dataset.kind = kind;
+/** @param {string} id @param {string} message @param {string} [kind] */
+function status(id, message, kind = "info") {
+  element(id).textContent = message;
+  element(id).dataset.kind = kind;
 }
-
-/**
- * @param {HTMLProgressElement} bar
- * @param {HTMLElement} text
- * @param {number} percent
- * @param {string} message
- */
-function setProgress(bar, text, percent, message) {
-  const bounded = Math.max(0, Math.min(100, Number(percent) || 0));
-  bar.value = bounded;
-  text.textContent = message || (bounded > 0 ? `${bounded.toFixed(1)}%` : "");
+/** @param {string} id @param {number} percent */
+function progress(id, percent) {
+  /** @type {HTMLProgressElement} */ (element(id)).value = Math.max(0, Math.min(100, percent));
 }
-
-/** @param {Blob} blob @param {string} filename */
-function downloadBlob(blob, filename) {
+/** @param {string} id @param {number} max */
+function selected(id, max) {
+  const file = input(id).files?.[0];
+  if (!file) throw new BlindCryptError("INVALID_INPUT", "Choose the required file first");
+  if (file.size > max) throw new BlindCryptError("FILE_TOO_LARGE", "File exceeds this workflow's safety limit");
+  return file;
+}
+/** @param {string} field @param {string} confirmation */
+function confirmed(field, confirmation) {
+  const value = validateSecret(input(field).value);
+  if (value !== input(confirmation).value.normalize("NFC")) throw new BlindCryptError("INVALID_INPUT", "Passphrase confirmation does not match");
+  return value;
+}
+/** Downloads stay local. Release each URL before processing the next queue item.
+ * @param {Blob} blob @param {string} filename
+ */
+async function download(blob, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = sanitizeFilename(filename);
   anchor.rel = "noopener noreferrer";
   document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  try {
+    anchor.click();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  } finally { anchor.remove(); URL.revokeObjectURL(url); }
 }
 
-/** @param {unknown} error */
-function encryptionErrorMessage(error) {
-  if (error instanceof BlindCryptError) {
-    if (["FILE_TOO_LARGE", "INVALID_INPUT", "INVALID_KDF", "INVALID_PASSPHRASE"].includes(error.code)) {
-      return error.message;
+/** @param {string} target @param {(signal: AbortSignal) => Promise<string>} operation */
+async function run(target, operation) {
+  if (busy) return;
+  busy = true;
+  controller = new AbortController();
+  const controls = [...document.querySelectorAll("button,input,select,textarea")].filter(
+    (item) => item instanceof HTMLButtonElement || item instanceof HTMLInputElement || item instanceof HTMLSelectElement || item instanceof HTMLTextAreaElement);
+  const states = controls.map((item) => item.disabled);
+  controls.forEach((item) => { item.disabled = true; });
+  button("cancelOperation").disabled = false;
+  status(target, "Processing locally. No file data is transmitted.");
+  try {
+    const message = await operation(controller.signal);
+    status(target, message, controller.signal.aborted ? "warn" : "good");
+  } catch (error) {
+    const known = error instanceof BlindCryptError;
+    const display = known && ["INVALID_INPUT", "INVALID_PASSPHRASE", "FILE_TOO_LARGE", "CANCELLED", "UNSUPPORTED_BROWSER"].includes(error.code);
+    const cancelled = controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError");
+    status(target, cancelled ? "Cancelled. No completed output is claimed." : display ? error.message :
+      "Operation failed. Check the secret, file format, recipient, and file integrity.", cancelled ? "warn" : "bad");
+  } finally {
+    for (const field of document.querySelectorAll("input[type=password]")) {
+      if (field instanceof HTMLInputElement) field.value = "";
     }
+    for (const id of ["encPass", "decPass", "textPass", "upgradeOld", "upgradeNew", "largePass", "identityPass", "identityUnlock"]) {
+      input(id).value = ""; input(id).type = "password";
+    }
+    button("encShow").textContent = "Show";
+    button("decShow").textContent = "Show";
+    controls.forEach((item, index) => { item.disabled = states[index]; });
+    button("cancelOperation").disabled = true;
+    controller = null;
+    busy = false;
+    updateAssessment();
   }
-  return "Encryption failed. No output was created.";
 }
 
-/** @param {unknown} error */
-function decryptionErrorMessage(error) {
-  if (error instanceof BlindCryptError && error.code === "FILE_TOO_LARGE") return error.message;
-  return "Decryption failed. The passphrase is wrong, the file is invalid, or the file was modified.";
-}
-
-function updateLevelLabel() {
-  const levelKey = select("encLevel").value;
-  const level = LEVELS[/** @type {keyof typeof LEVELS} */ (levelKey)] || LEVELS.strong;
-  element("encIterLabel").textContent = level.iterations.toLocaleString("en-US");
-  element("encWordLabel").textContent = String(level.words);
-}
-
-function updatePassphraseAssessment() {
+function updateAssessment() {
   const assessment = assessPassphrase(input("encPass").value, wordSet);
-  const bar = progress("passStrengthBar");
-  const text = element("passStrengthText");
-  const hint = element("passStrengthHint");
-
-  text.textContent = assessment.label;
-  hint.textContent = assessment.text;
-  if (assessment.kind === "word-list") {
-    bar.hidden = false;
-    bar.value = assessment.progress;
-  } else {
-    bar.hidden = true;
-    bar.value = 0;
-  }
+  const bar = /** @type {HTMLProgressElement} */ (element("passStrengthBar"));
+  bar.hidden = assessment.kind !== "word-list";
+  bar.value = assessment.progress;
+  element("passStrengthText").textContent = assessment.label;
+  element("passStrengthHint").textContent = assessment.text;
 }
-
+function updateLevel() {
+  const settings = LEVELS[level("encLevel")] || LEVELS.strong;
+  element("encIterLabel").textContent = settings.iterations.toLocaleString("en-US");
+  element("encWordLabel").textContent = String(settings.words);
+}
 /** @param {string} name */
 function setTab(name) {
-  for (const tab of document.querySelectorAll("[role='tab']")) {
+  for (const tab of document.querySelectorAll("[role=tab]")) {
     const active = tab instanceof HTMLElement && tab.dataset.tab === name;
-    tab.setAttribute("aria-selected", active ? "true" : "false");
+    tab.setAttribute("aria-selected", String(active));
     tab.setAttribute("tabindex", active ? "0" : "-1");
     tab.classList.toggle("active", active);
   }
-  for (const panel of document.querySelectorAll("[role='tabpanel']")) {
+  for (const panel of document.querySelectorAll("[role=tabpanel]")) {
     if (panel instanceof HTMLElement) panel.hidden = panel.id !== `panel-${name}`;
   }
 }
 
-function bindTabs() {
-  const tabs = [...document.querySelectorAll("[role='tab']")];
-  tabs.forEach((tab, index) => {
-    tab.addEventListener("click", () => {
-      if (tab instanceof HTMLElement && tab.dataset.tab) setTab(tab.dataset.tab);
-    });
-    tab.addEventListener("keydown", (event) => {
-      if (!(event instanceof KeyboardEvent) || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+/** @param {"enc" | "dec"} kind @param {boolean} [verify] */
+function queueFiles(kind, verify = false) {
+  const files = dropped.get(kind) || [...(input(`${kind}File`).files || [])];
+  if (!files.length || files.length > 100) throw new BlindCryptError("INVALID_INPUT", "Choose between 1 and 100 files");
+  if (!verify && files.reduce((total, file) => total + file.size, 0) > MAX_CONTAINER_SIZE) {
+    throw new BlindCryptError("FILE_TOO_LARGE", "Buffered queues are limited to 64 MiB combined; use Large files or smaller batches");
+  }
+  if (verify && files.some((file) => file.size > MAX_STREAM_CONTAINER_SIZE)) throw new BlindCryptError("FILE_TOO_LARGE", "Verification is limited to 4 GiB per file");
+  element(`${kind}Results`).replaceChildren();
+  return files;
+}
+/** @param {"enc" | "dec"} kind @param {File[]} files @param {{index: number, state: string, code: string | null}} result */
+function queueResult(kind, files, result) {
+  const item = document.createElement("li");
+  item.textContent = `${files[result.index].name}: ${result.state}${result.code ? ` (${result.code})` : ""}`;
+  element(`${kind}Results`).appendChild(item);
+}
+/** @param {{state: string}[]} results */
+function queueSummary(results) {
+  return ["complete", "failed", "cancelled"].map((state) => `${results.filter((result) => result.state === state).length} ${state}`).join("; ") + ". Downloads may require browser permission.";
+}
+/** @param {{name: string, type: string}} metadata @param {string} format @param {boolean} authenticated */
+function showMetadata(metadata, format, authenticated) {
+  element("metaFormat").textContent = format;
+  element("metaName").textContent = metadata.name;
+  element("metaType").textContent = metadata.type;
+  element("metaIntegrity").textContent = authenticated ? "Complete container integrity verified; not a malware or sender check" : "Legacy limitations apply";
+}
+
+function bindFiles() {
+  for (const kind of /** @type {const} */ (["enc", "dec"])) {
+    input(`${kind}File`).addEventListener("change", () => { dropped.delete(kind); });
+    element(`${kind}Drop`).addEventListener("dragover", (event) => { event.preventDefault(); });
+    element(`${kind}Drop`).addEventListener("drop", (event) => {
       event.preventDefault();
-      const delta = event.key === "ArrowRight" ? 1 : -1;
-      const next = tabs[(index + delta + tabs.length) % tabs.length];
-      if (next instanceof HTMLElement && next.dataset.tab) {
-        setTab(next.dataset.tab);
-        next.focus();
-      }
+      if (busy || !(event instanceof DragEvent) || !event.dataTransfer) return;
+      const files = [...event.dataTransfer.files];
+      if (!files.length || files.length > 100) { status(`${kind}Status`, "Choose between 1 and 100 files", "bad"); return; }
+      dropped.set(kind, files);
+      input(`${kind}File`).value = "";
+      status(`${kind}Status`, `${files.length} files queued locally.`);
     });
-  });
+  }
+  document.addEventListener("dragover", (event) => { event.preventDefault(); });
+  document.addEventListener("drop", (event) => { event.preventDefault(); });
+  button("doEncrypt").addEventListener("click", () => run("encStatus", async (signal) => {
+    const files = queueFiles("enc");
+    const secret = confirmed("encPass", "encConfirm");
+    const results = await processQueue(files, async (file) => {
+      const result = await encryptBlobV3(file, secret, { name: file.name, type: file.type,
+        levelKey: level("encLevel"), signal, onProgress: (p) => progress("encProgress", p) });
+      await download(result.blob, encryptedFilename(file.name, input("revealName").checked));
+    }, { signal, onResult: (result) => queueResult("enc", files, result) });
+    return queueSummary(results);
+  }));
+  for (const verify of [false, true]) {
+    button(verify ? "doVerify" : "doDecrypt").addEventListener("click", () => run("decStatus", async (signal) => {
+      const files = queueFiles("dec", verify);
+      const secret = input("decPass").value;
+      if (!secret) throw new BlindCryptError("INVALID_INPUT", "Enter the passphrase");
+      for (const id of ["metaFormat", "metaName", "metaType", "metaIntegrity"]) element(id).textContent = "-";
+      let legacy = false;
+      const results = await processQueue(files, async (file) => {
+        const onProgress = /** @param {number} p */ (p) => progress("decProgress", p);
+        if (verify) {
+          const result = await verifyV3(file, secret, { signal, onProgress });
+          showMetadata(result.metadata, "v3", true);
+        } else {
+          const result = await decryptBlobAny(file, secret, onProgress, signal);
+          showMetadata(result.metadata, `v${result.formatVersion}`, result.authenticatedMetadata);
+          legacy ||= !result.authenticatedMetadata;
+          await download(result.blob, result.authenticatedMetadata ? result.metadata.name : "legacy-decrypted.bin");
+        }
+      }, { signal, onResult: (result) => queueResult("dec", files, result) });
+      return (verify ? "Verification creates no plaintext downloads. Legacy completeness is not supported. " : "") +
+        (legacy ? "Warning: legacy metadata and completeness are not authenticated. " : "") + queueSummary(results);
+    }));
+  }
 }
 
-function bindPasswordVisibility() {
-  button("encShow").addEventListener("click", () => {
-    const field = input("encPass");
-    field.type = field.type === "password" ? "text" : "password";
-    button("encShow").textContent = field.type === "password" ? "Show" : "Hide";
+function bindAdditionalWorkflows() {
+  button("encryptText").addEventListener("click", () => run("textStatus", async (signal) => {
+    text("textCipher").value = await encryptText(text("textPlain").value, confirmed("textPass", "textConfirm"), "strong", signal);
+    text("textPlain").value = "";
+    return "Encrypted text ready. Share the passphrase separately.";
+  }));
+  button("decryptText").addEventListener("click", () => run("textStatus", async (signal) => {
+    text("textPlain").value = "";
+    text("textPlain").value = await decryptText(text("textCipher").value, input("textPass").value, signal);
+    return "Text decrypted and authenticated. Clear it after use.";
+  }));
+  button("copyText").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(text("textCipher").value); status("textStatus", "Encrypted text copied."); }
+    catch { status("textStatus", "Clipboard unavailable. Select and copy the encrypted text manually.", "warn"); }
   });
-  button("decShow").addEventListener("click", () => {
-    const field = input("decPass");
-    field.type = field.type === "password" ? "text" : "password";
-    button("decShow").textContent = field.type === "password" ? "Show" : "Hide";
-  });
-}
-
-function bindPassphraseControls() {
-  select("encLevel").addEventListener("change", updateLevelLabel);
-  input("encPass").addEventListener("input", updatePassphraseAssessment);
-
-  button("genPass").addEventListener("click", () => {
-    const levelKey = /** @type {keyof typeof LEVELS} */ (select("encLevel").value);
-    const level = LEVELS[levelKey] || LEVELS.strong;
-    try {
-      const generated = generatePassphrase(words, level.words);
-      input("encPass").value = generated;
-      input("encConfirm").value = "";
-      updatePassphraseAssessment();
-      setStatus(
-        element("encStatus"),
-        "Passphrase generated. Store it separately before encrypting; lost passphrases cannot be recovered.",
-        "warn",
-      );
-    } catch {
-      setStatus(element("encStatus"), "Secure passphrase generation is unavailable.", "bad");
-    }
-  });
-
-  button("copyPass").addEventListener("click", async () => {
-    const passphrase = input("encPass").value;
-    if (!passphrase) {
-      setStatus(element("encStatus"), "There is no passphrase to copy.", "bad");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(passphrase);
-      setStatus(
-        element("encStatus"),
-        "Passphrase copied. Clipboard contents may be visible to other applications; clear it after use.",
-        "warn",
-      );
-    } catch {
-      setStatus(element("encStatus"), "Clipboard access was blocked. Select and copy the passphrase manually.", "bad");
-    }
-  });
-}
-
-function bindEncryption() {
-  button("doEncrypt").addEventListener("click", async () => {
-    const action = button("doEncrypt");
-    const status = element("encStatus");
-    const progressBar = progress("encProgress");
-    const progressText = element("encProgressText");
-    setProgress(progressBar, progressText, 0, "");
-
-    const file = input("encFile").files?.[0];
-    if (!file) {
-      setStatus(status, "Choose a file first.", "bad");
-      return;
-    }
-    if (file.size > LIMITS.maxPlaintextSize) {
-      setStatus(status, "The selected file exceeds the 64 MiB browser safety limit.", "bad");
-      return;
-    }
-
-    let passphrase;
-    try {
-      passphrase = validateNewPassphrase(input("encPass").value, wordSet);
-    } catch (error) {
-      setStatus(status, error instanceof Error ? error.message : "Passphrase is invalid.", "bad");
-      return;
-    }
-    const confirmation = input("encConfirm").value.normalize("NFC");
-    if (passphrase !== confirmation) {
-      setStatus(status, "Passphrase confirmation does not match.", "bad");
-      return;
-    }
-
-    const levelKey = /** @type {keyof typeof LEVELS} */ (select("encLevel").value);
-    try {
-      action.disabled = true;
-      setStatus(status, "Encrypting locally. The file and passphrase are not transmitted.", "info");
-      const result = await encryptBlobV3(file, passphrase, {
-        name: file.name,
-        type: file.type,
-        levelKey,
-        onProgress: (percent, message) => setProgress(progressBar, progressText, percent, message),
-      });
-      downloadBlob(result.blob, `${result.metadata.name}.blindcrypt`);
-      input("encConfirm").value = "";
-      setProgress(progressBar, progressText, 100, "100.0%");
-      setStatus(
-        status,
-        "Authenticated format v3 file created. Share the passphrase through a separate channel.",
-        "good",
-      );
-    } catch (error) {
-      setProgress(progressBar, progressText, 0, "");
-      setStatus(status, encryptionErrorMessage(error), "bad");
-    } finally {
-      action.disabled = false;
-    }
-  });
-}
-
-function resetDecryptionMetadata() {
-  element("metaFormat").textContent = "-";
-  element("metaName").textContent = "-";
-  element("metaType").textContent = "-";
-  element("metaIntegrity").textContent = "-";
-}
-
-function bindDecryption() {
-  button("doDecrypt").addEventListener("click", async () => {
-    const action = button("doDecrypt");
-    const status = element("decStatus");
-    const progressBar = progress("decProgress");
-    const progressText = element("decProgressText");
-    resetDecryptionMetadata();
-    setProgress(progressBar, progressText, 0, "");
-
-    const file = input("decFile").files?.[0];
-    if (!file) {
-      setStatus(status, "Choose an encrypted file first.", "bad");
-      return;
-    }
-    if (file.size > LIMITS.maxContainerSize) {
-      setStatus(status, "The encrypted file exceeds the supported browser safety limit.", "bad");
-      return;
-    }
-    const passphrase = input("decPass").value;
-    if (!passphrase) {
-      setStatus(status, "Enter the passphrase.", "bad");
-      return;
-    }
-
-    try {
-      action.disabled = true;
-      setStatus(status, "Decrypting locally. No file data is transmitted.", "info");
-      const result = await decryptBlobAny(
-        file,
-        passphrase,
-        (percent, message) => setProgress(progressBar, progressText, percent, message),
-      );
-      element("metaFormat").textContent = `v${result.formatVersion}`;
-      element("metaName").textContent = result.metadata.name;
-      element("metaType").textContent = result.metadata.type;
-      element("metaIntegrity").textContent = result.authenticatedMetadata
-        ? "Header, metadata, and every record authenticated"
-        : "Legacy limitations apply";
-
-      const outputName = result.authenticatedMetadata ? result.metadata.name : "legacy-decrypted.bin";
-      downloadBlob(result.blob, outputName);
-      input("decPass").value = "";
-      input("decPass").type = "password";
-      button("decShow").textContent = "Show";
-      setProgress(progressBar, progressText, 100, "100.0%");
-      setStatus(
-        status,
-        result.legacyWarning || "Decryption complete. Authenticated output download started.",
-        result.legacyWarning ? "warn" : "good",
-      );
-    } catch (error) {
-      setProgress(progressBar, progressText, 0, "");
-      setStatus(status, decryptionErrorMessage(error), "bad");
-    } finally {
-      action.disabled = false;
-    }
-  });
+  button("clearText").addEventListener("click", () => { text("textPlain").value = ""; text("textCipher").value = ""; input("textPass").value = ""; input("textConfirm").value = ""; });
+  button("doUpgrade").addEventListener("click", () => run("upgradeStatus", async (signal) => {
+    const result = await reencrypt(selected("upgradeFile", MAX_CONTAINER_SIZE), input("upgradeOld").value,
+      confirmed("upgradeNew", "upgradeConfirm"), { name: input("upgradeName").value, levelKey: level("upgradeLevel"), signal });
+    await download(result.blob, encryptedFilename());
+    return "New encrypted copy created. Old copies are not revoked. " + (result.legacyWarning || "Verify the replacement before retiring the original.");
+  }));
+  for (const encrypt of [true, false]) {
+    button(encrypt ? "largeEncrypt" : "largeDecrypt").addEventListener("click", () => run("largeStatus", async (signal) => {
+      const picker = Reflect.get(globalThis, "showSaveFilePicker");
+      if (typeof picker !== "function") throw new BlindCryptError("UNSUPPORTED_BROWSER", "This browser lacks a transactional save picker. Use the 64 MiB workflow or CLI.");
+      const source = selected("largeFile", encrypt ? MAX_STREAM_PLAINTEXT_SIZE : MAX_STREAM_CONTAINER_SIZE);
+      const secret = encrypt ? confirmed("largePass", "largeConfirm") : input("largePass").value;
+      if (!secret) throw new BlindCryptError("INVALID_INPUT", "Enter the passphrase");
+      // Invoke the picker before any await, while the click still has user activation.
+      const handle = await picker({ suggestedName: encrypt ? encryptedFilename() : "decrypted.bin" });
+      const sink = /** @type {import("./crypto-v3.js").TransactionalSink} */ (await handle.createWritable({ keepExistingData: false }));
+      const onProgress = /** @param {number} p */ (p) => progress("largeProgress", p);
+      if (encrypt) await encryptV3ToSink(source, secret, { name: source.name, type: source.type, levelKey: "strong", signal, onProgress }, sink);
+      else await decryptV3ToSink(source, secret, sink, { signal, onProgress });
+      return "Complete output committed to the selected file.";
+    }));
+  }
+  button("createIdentity").addEventListener("click", () => run("recipientStatus", async (signal) => {
+    const identity = await generateIdentity(confirmed("identityPass", "identityConfirm"), signal);
+    element("identityFingerprint").textContent = identity.fingerprint;
+    await download(identity.privateBackup, "blindcrypt-private.bckey");
+    await download(new Blob([identity.publicKey], { type: "application/json" }), "blindcrypt-public.json");
+    return "Save both files. Share only the public key and independently verify its fingerprint.";
+  }));
+  button("recipientEncrypt").addEventListener("click", () => run("recipientStatus", async (signal) => {
+    const recipient = await importRecipient(await selected("recipientPublic", 2048).text());
+    if (input("expectedFingerprint").value !== recipient.fingerprint) throw new BlindCryptError("INVALID_INPUT", "Recipient fingerprint does not match the independently received value");
+    const file = selected("recipientFile", MAX_RECIPIENT_BYTES);
+    await download(await encryptForRecipient(file, recipient, { name: file.name, type: file.type, signal }), `${encryptedFilename()}.jwe`);
+    return "Recipient envelope created. It does not authenticate the sender.";
+  }));
+  for (const verifyOnly of [false, true]) {
+    button(verifyOnly ? "recipientVerify" : "recipientDecrypt").addEventListener("click", () => run("recipientStatus", async (signal) => {
+      const identity = await unlockIdentity(selected("identityBackup", MAX_IDENTITY_BYTES), input("identityUnlock").value, signal);
+      const result = await decryptForRecipient(selected("recipientEnvelope", MAX_RECIPIENT_ENVELOPE), identity, { signal, verifyOnly });
+      if (result.blob) await download(result.blob, result.metadata.name);
+      return "Recipient envelope integrity verified. Sender identity is not authenticated.";
+    }));
+  }
 }
 
 function initialize() {
+  for (const item of document.querySelectorAll("[data-app-version]")) item.textContent = APP_VERSION;
   document.documentElement.dataset.version = APP_VERSION;
-  for (const versionElement of document.querySelectorAll("[data-app-version]")) {
-    versionElement.textContent = APP_VERSION;
-  }
   element("maxFileSize").textContent = `${LIMITS.maxPlaintextSize / (1024 * 1024)} MiB`;
-  bindTabs();
-  bindPasswordVisibility();
-  bindPassphraseControls();
-  bindEncryption();
-  bindDecryption();
-  updateLevelLabel();
-  updatePassphraseAssessment();
-  resetDecryptionMetadata();
-  setTab("encrypt");
+  const tabs = [...document.querySelectorAll("[role=tab]")];
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => { if (tab instanceof HTMLElement && tab.dataset.tab) setTab(tab.dataset.tab); });
+    tab.addEventListener("keydown", (event) => {
+      if (!(event instanceof KeyboardEvent) || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      const next = tabs[nextIndex];
+      if (next instanceof HTMLElement && next.dataset.tab) { setTab(next.dataset.tab); next.focus(); }
+    });
+  });
+  for (const kind of ["enc", "dec"]) button(`${kind}Show`).addEventListener("click", () => {
+    input(`${kind}Pass`).type = input(`${kind}Pass`).type === "password" ? "text" : "password";
+    button(`${kind}Show`).textContent = input(`${kind}Pass`).type === "password" ? "Show" : "Hide";
+  });
+  button("genPass").addEventListener("click", () => {
+    input("encPass").value = generatePassphrase(words, LEVELS[level("encLevel")].words);
+    input("encConfirm").value = "";
+    updateAssessment();
+    status("encStatus", "Store this passphrase separately, then confirm it. Lost passphrases cannot be recovered.", "warn");
+  });
+  for (const item of document.querySelectorAll("[data-generate-for]")) item.addEventListener("click", () => {
+    if (item instanceof HTMLElement && item.dataset.generateFor) {
+      const field = input(item.dataset.generateFor);
+      field.value = generatePassphrase(words, 8);
+      field.type = "text";
+      field.focus();
+      field.select();
+    }
+  });
+  button("copyPass").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(input("encPass").value); status("encStatus", "Passphrase copied. Other applications may read the clipboard; clear it after use.", "warn"); }
+    catch { status("encStatus", "Clipboard unavailable. Copy the passphrase manually.", "warn"); }
+  });
+  input("encPass").addEventListener("input", updateAssessment);
+  element("encLevel").addEventListener("change", updateLevel);
+  button("cancelOperation").addEventListener("click", () => controller?.abort());
+  bindFiles(); bindAdditionalWorkflows(); updateLevel(); updateAssessment(); setTab("encrypt");
+  initializeOffline(() => busy);
 }
-
 initialize();

@@ -464,3 +464,13 @@ progress::-moz-progress-bar {
     text-align: left;
   }
 }
+
+/* 02.00.00 workflow additions */
+.tabs { flex-wrap: wrap; }
+textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; padding: .7rem; border: 1px solid currentColor; border-radius: .4rem; background: transparent; color: inherit; }
+.check { display: flex; gap: .5rem; align-items: flex-start; margin-top: .75rem; }
+.check input { width: auto; }
+.dropzone { border: 1px dashed currentColor; border-radius: .5rem; padding: .7rem; }
+.queue, output { overflow-wrap: anywhere; }
+.card .btn { margin-top: .7rem; }
+[hidden] { display: none !important; }

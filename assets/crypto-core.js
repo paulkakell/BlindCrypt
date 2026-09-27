@@ -1,7 +1,7 @@
 // @ts-check
 
 /** BlindCrypt application version. */
-export const APP_VERSION = "01.01.02";
+export const APP_VERSION = "02.00.00";
 
 /** New files are written with format v3. */
 export const FORMAT_VERSION = 3;
@@ -14,6 +14,11 @@ export const METADATA_BLOCK_SIZE = 1024;
 
 /** Browser-only safety ceiling. */
 export const MAX_PLAINTEXT_SIZE = 64 * 1024 * 1024;
+
+/** Explicit streaming ceiling; buffered APIs retain their 64 MiB limit. */
+export const MAX_STREAM_PLAINTEXT_SIZE = 4 * 1024 * 1024 * 1024;
+export const MAX_STREAM_CONTAINER_SIZE = MAX_STREAM_PLAINTEXT_SIZE +
+  Math.ceil(MAX_STREAM_PLAINTEXT_SIZE / CHUNK_SIZE) * 16 + 8 + 4096 + 1024 + 16;
 
 /** Maximum accepted public header length. */
 export const MAX_HEADER_SIZE = 4096;

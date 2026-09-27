@@ -8,14 +8,16 @@
   },
   "scripts": {
     "lint": "node scripts/lint.mjs",
-    "typecheck": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json && tsc --project tsconfig.sw.json",
     "test": "node --test tests/*.test.mjs",
     "security": "node scripts/sast.mjs",
     "config": "node scripts/config-check.mjs",
     "build": "node scripts/build.mjs",
     "smoke": "node scripts/smoke.mjs",
     "perf": "node scripts/perf.mjs",
-    "validate": "npm run lint && npm run typecheck && npm test && npm run security && npm run config && npm run build && npm run smoke && npm run perf"
+    "validate": "npm run validate:core && npm run browser",
+    "browser": "node scripts/browser.mjs",
+    "validate:core": "npm run lint && npm run typecheck && npm test && npm run security && npm run config && npm run build && npm run smoke && npm run perf"
   },
   "devDependencies": {
     "typescript": "7.0.2"

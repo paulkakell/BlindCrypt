@@ -4,7 +4,8 @@
 
 | Version | Status |
 |---|---|
-| 01.01.02 | Current maintenance line after its validated release tag is published |
+| 02.00.00 | Candidate; production status depends on exact-commit release gates |
+| 01.01.02 | Retained released baseline; cannot read new large-profile/JWE data |
 | 01.01.01 | Compatible rollback baseline; fixes move to 01.01.02 |
 | 01.01.00 and unversioned baseline | Superseded; do not use as the production rollback reader |
 
@@ -29,4 +30,4 @@ The maintainer will reproduce the report, assign severity, prepare a private fix
 
 ## Cryptographic scope
 
-BlindCrypt relies on browser WebCrypto for PBKDF2-HMAC-SHA-256 and AES-256-GCM. It does not implement primitive algorithms. Changes to format framing, key derivation, IV construction, authentication inputs, limits, or compatibility behavior require focused security review and new known-answer or tamper tests.
+BlindCrypt relies on browser WebCrypto for PBKDF2-HMAC-SHA-256, AES-256-GCM, RSA-OAEP-256 and SHA-256. The CLI uses the Node WebCrypto implementation of the same primitives. It does not implement primitive algorithms. Changes to format framing, key derivation, IV construction, authentication inputs, limits, or compatibility behavior require focused security review and new known-answer, interoperability or tamper tests. The recipient implementation has not received an independent security audit; do not recommend it for high-value data before that review. Optional offline asset caching and transactional CLI/browser output are explicit new trust boundaries documented in the threat model.

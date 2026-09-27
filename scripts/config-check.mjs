@@ -55,6 +55,16 @@ const index = await readFile(resolve(root, "index.html"), "utf8");
 if (!index.includes("value=\"strong\" selected")) failures.push("Strong must remain the default security level");
 if (!index.includes("64 MiB")) failures.push("File-size safety limit is not documented in the interface");
 
+const worker = await readFile(resolve(root, "sw.js"), "utf8");
+if (!worker.includes(`const VERSION = "${version}";`)) failures.push("Worker version differs");
+const manifest = JSON.parse(await readFile(resolve(root, "manifest.webmanifest"), "utf8"));
+if (manifest.scope !== "./" || manifest.start_url !== "./") failures.push("Offline scope must remain local");
+for (const asset of manifest.icons || []) if (!/^assets\/icon-(?:192|512)\.png$/u.test(asset.src)) failures.push("Unexpected icon path");
+if (!index.includes("worker-src 'self'")) failures.push("Worker CSP is missing");
+for (const path of ["docs/ROADMAP.md", `docs/RELEASE_${version}.md`, `docs/VALIDATION_${version}.md`]) {
+  try { await readFile(resolve(root, path)); } catch { failures.push(`Missing release document ${path}`); }
+}
+
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   process.exit(1);

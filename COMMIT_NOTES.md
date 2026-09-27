@@ -1,20 +1,23 @@
-# Commit notes for 01.01.02
+# Commit notes: 02.00.00
+
+Copy-ready implementation message. Replace no version with an informal build label; use the actual Git commit and workflow references in the PR/tracker after publication.
 
 ```text
-fix(release): consolidate validated dependency branches for 01.01.02
+feat(02.00.00): implement accepted local-first roadmap (#13)
 
-Release: 01.01.02
-Tag: v01.01.02 on the validated main merge commit only
+- Default to opaque encrypted filenames and add bounded sequential file queues.
+- Share v3 record I/O across buffered, verification-only and transactional streams.
+- Add encrypted text and non-destructive passphrase/legacy migration workflows.
+- Add opt-in digest-verified offline assets and explicit application update controls.
+- Add a shared-core Node CLI with bounded secret input and no-overwrite output.
+- Implement restricted single-recipient JWE, fingerprints and encrypted identities.
+- Expand regression, interoperability, cleanup, offline and real-browser tests.
+- Update security policy, architecture, API, examples, roadmap and rollback guidance.
 
-Integrate PRs #2, #7, #10 and #11 while preserving merge ancestry.
-Copy PBKDF2 salt before asynchronous WebCrypto calls for TypeScript 7
-compatibility and deterministic caller-buffer handling.
-Pin the complete reviewed dependency lockfile with SHA-256.
-Add salt and lockfile-tampering regression coverage.
-Validate main pushes, retain dev, and preserve rollback artifacts before
-expected-SHA deletion of integrated dependency and release branches.
-Update release, API, architecture, security and rollback documentation.
-
-No public API, container format or database migration change.
-Hosted validation, CodeQL and Pages must pass before final release cleanup.
+BREAKING CHANGE: optional offline installation caches public application assets;
+outer names are opaque by default; new large-profile/JWE files need a newer reader.
+Buffered v3 APIs and v1/v2 reading remain available. No runtime dependencies added.
+Independent recipient review and native browser/device release gates remain explicit.
 ```
+
+Baseline: d9ac4217604c248e73b34edebcbdbd6e8af80b06. Related issue: #13. Do not claim a production tag, clean dependency audit, passing remote workflow or independent review until the corresponding evidence is actually recorded.

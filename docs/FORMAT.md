@@ -123,3 +123,34 @@ Each plaintext record is at most 524,288 bytes. AES-GCM appends a 16-byte authen
 ## Legacy formats
 
 Version 1 and version 2 remain read-only. Their public metadata is untrusted. Version 2 record tags do not cryptographically commit to the complete original file. The application applies strict resource bounds and neutral output handling but cannot retrofit missing authentication.
+
+
+## 02.00.00 v3 resource profiles
+
+The binary format above remains v3. Buffered APIs retain the 64 MiB plaintext limit. Explicit streaming APIs and record-discarding verification allow up to 4 GiB, with the same 512 KiB records, 1,024-byte metadata, 16-byte tags, salt/nonce construction and canonical header/AAD rules. Readers validate exact header geometry and total length before KDF work. The 32-bit record counter is not approached by the 8,192-record stream ceiling. Old readers intentionally reject files above their own bound; retaining format number 3 does not imply old resource-limit compatibility.
+
+## Encrypted text wrapper
+
+`BLINDCRYPT-TEXT-1.` followed immediately by canonical unpadded base64url of one v3 container. No whitespace, alternate alphabets or appended data. Authenticated metadata is `message.txt` and `text/plain`; plaintext is at most 65,536 UTF-8 bytes and decoded with fatal UTF-8 validation. This wrapper is copyable text, not HTML and not a URL. A normal file container with unrelated metadata is not silently interpreted as a note.
+
+## Restricted single-recipient JWE profile
+
+Normative external constructions: RFC 7516 (JWE Compact Serialization), RFC 7518 (RSA-OAEP-256 and A256GCM), RFC 7638 (JWK thumbprint). BlindCrypt restricts the accepted algorithms and payload. Standards-based primitives do not replace review of this implementation.
+
+The envelope has exactly five canonical unpadded base64url segments separated by four dots: protected header, encrypted content key, IV, ciphertext, authentication tag. The protected header is UTF-8 JSON with exactly these fields in this order:
+
+```json
+{"alg":"RSA-OAEP-256","enc":"A256GCM","cty":"application/vnd.blindcrypt.recipient-v1","kid":"PUBLIC_RFC7638_FINGERPRINT"}
+```
+
+Canonical re-encoding is required. Duplicate/unknown headers, unprotected headers, `jku`/remote key lookup, compression, algorithm negotiation, RSA1_5, RSA-OAEP/SHA-1, and `none` are not supported. The public `kid` can correlate files addressed to the same key; it is not confidential recipient metadata.
+
+The RSA modulus is exactly 3,072 bits (384 canonical decoded bytes), exponent 65,537 (`AQAB`). Public JWK accepts exactly `e`, `kty`, `n`; import is bounded to 2,048 text bytes at UI/CLI file boundaries. The fingerprint is SHA-256 of RFC 7638 canonical UTF-8 `{"e":...,"kty":"RSA","n":...}`, encoded as unpadded base64url (43 characters). The user must independently authenticate that fingerprint.
+
+Each envelope generates a fresh random 32-byte content-encryption key and 12-byte IV. RSA-OAEP with SHA-256/MGF1-SHA-256 and the empty default label wraps the content key; the encrypted key must be 384 bytes. AES-256-GCM uses a 128-bit tag. Its additional authenticated data is the ASCII bytes of the protected-header base64url segment, as specified by JWE. The ciphertext segment excludes the final 16-byte tag, which occupies the fifth segment.
+
+The encrypted payload is `BCR1` (four ASCII bytes), followed by the existing 1,024-byte metadata block, followed by exactly the original plaintext file bytes. Metadata fields remain name, type and writer under the existing metadata block parser. The original file is limited to 16 MiB; the armored input is bounded before parsing/decoding. An authenticated payload with the wrong magic, metadata geometry or unsupported version is rejected. Empty file payloads are valid.
+
+Private identity export uses a normal v3 container named `blindcrypt-identity.json` with media type `application/json`, encrypted with a Strong passphrase. The inner JSON has exactly RSA members `e`, `kty`, `n`, `d`, `p`, `q`, `dp`, `dq`, `qi`; it is never downloaded unencrypted. Private backup input is capped at 16 KiB and inner key text at 8 KiB. The imported private CryptoKey is nonextractable. JavaScript-exported strings during generation cannot be guaranteed erased; this limitation is documented.
+
+No sender signature is present. Anyone possessing the public key can create an authentic-to-that-recipient envelope. There is no multi-recipient wrapping, revocation, key escrow, or recovery service. Recipient verification creates no plaintext download but authenticates a bounded in-memory payload, unlike record-discarding v3 verification. Independent implementation tests cover encryption/decryption in both directions using Node's classic crypto API.
