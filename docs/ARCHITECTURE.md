@@ -67,3 +67,15 @@ Node scripts provide syntax checks, policy linting, strict type checking, tests,
 - No plaintext, passphrase, metadata, or filename is placed in local storage, session storage, cookies, URL parameters, logs, or telemetry.
 - Runtime executable resources are same-origin files covered by CSP.
 - Output MIME type is `application/octet-stream`; authenticated original type is informational metadata only.
+
+## Release maintenance path (01.01.02)
+
+```text
+Reviewed dependency heads -> release/01.01.02 -> pull-request validation + CodeQL
+                                             -> merge commit on main
+                                             -> main validation + CodeQL + Pages
+                                             -> version tag + rollback artifacts
+                                             -> expected-SHA branch retirement
+```
+
+The release workflow has repository write permission only for publication and the explicitly scoped cleanup. Ordinary validation remains read-only. Runtime browser code remains independent of GitHub tokens, npm packages and release automation.

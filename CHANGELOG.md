@@ -2,6 +2,24 @@
 
 BlindCrypt versions use `xx.xx.xx` as `<Release>.<Feature Update>.<Bug Fix>`.
 
+## [01.01.02] - 2026-09-27
+
+### Fixed
+- Snapshot PBKDF2 salt into an ordinary owned byte buffer before the first asynchronous operation. This resolves TypeScript 7 BufferSource checking and prevents caller mutation from changing an in-flight derivation. Encryption algorithms, KDF parameters and v1/v2/v3 formats are unchanged.
+- Validate pushes to `main` as well as `dev`, closing the previous post-merge CI trigger gap.
+
+### Maintenance
+- Integrate TypeScript 7.0.2 from PR #2 (`4792316950cd196960cffb170156667227e45773`), including its existing lockfile.
+- Integrate deploy-pages 5.0.1 from PR #7 (`9e27a82605f443c5fe998e66785dda3458bfd90f`).
+- Integrate CodeQL analyze/init 4.38.1 from PRs #10/#11 (`ceb0a32515c4cf5d3d7629b45ef05df382a04233`, `fd7fb4d51aa98aa2424349a0ce4162fd5865b89a`). Keep actions pinned to full commit SHAs.
+- Replace the obsolete one-package TypeScript allowlist with the exact reviewed lockfile SHA-256, preserving fail-closed dependency validation.
+
+### Added
+- Regression tests for salt view offsets, mutation while awaiting WebCrypto, shared-buffer views and lockfile tampering.
+- Source archives, a version-scoped release/cleanup workflow, release notes and branch-restoration instructions. Cleanup requires successful validation, CodeQL and Pages runs for the exact main commit and preserved rollback artifacts.
+
+Compatibility: patch release; no intentional public API, format, database or user-configuration break. The compiler toolchain changes major version, but is development-only and must pass hosted validation before integration.
+
 ## [01.01.01] - 2026-08-13
 
 Status: development branch candidate. Release tag reserved: `v01.01.01` after merge and successful protected validation.

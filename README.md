@@ -1,6 +1,6 @@
 # BlindCrypt
 
-BlindCrypt is a static browser application for authenticated client-side file encryption. Version `01.01.01` writes format v3 containers and reads format v1, v2, and v3 files.
+BlindCrypt is a static browser application for authenticated client-side file encryption. Version `01.01.02` writes format v3 containers and reads format v1, v2, and v3 files.
 
 The application has no runtime dependencies, backend, account system, telemetry, analytics, or network requests. The hosting server delivers static files. Encryption and decryption use the browser WebCrypto implementation.
 
@@ -102,9 +102,9 @@ npm run perf       # 1 MiB authenticated round-trip performance smoke test
 
 BlindCrypt uses `xx.xx.xx` as `<Release>.<Feature Update>.<Bug Fix>`. The repository version is stored in `VERSION` and exposed through `APP_VERSION`.
 
-Development commits carry the next version but are not tagged. After the validated commit reaches `main`, create the matching immutable tag, such as `v01.01.01`, and attach the `dist/` artifact, `SHA256SUMS`, SPDX SBOM, release notes, and validation evidence. Do not tag a commit that did not pass the full workflow.
+Development commits carry the next version but are not tagged. After the validated commit reaches `main`, create the matching immutable tag, such as `v01.01.02`, and attach the `dist/` artifact, `SHA256SUMS`, SPDX SBOM, release notes, and validation evidence. Do not tag a commit that did not pass the full workflow.
 
-See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE_01.01.01.md](docs/RELEASE_01.01.01.md), [COMMIT_NOTES.md](COMMIT_NOTES.md), [docs/VALIDATION_01.01.01.md](docs/VALIDATION_01.01.01.md), [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), and [docs/ROLLBACK.md](docs/ROLLBACK.md).
+See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE_01.01.02.md](docs/RELEASE_01.01.02.md), [COMMIT_NOTES.md](COMMIT_NOTES.md), [docs/VALIDATION_01.01.02.md](docs/VALIDATION_01.01.02.md), [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), and [docs/ROLLBACK.md](docs/ROLLBACK.md).
 
 ## Security reports
 
@@ -113,3 +113,11 @@ Do not open a public issue for an undisclosed vulnerability. Follow [SECURITY.md
 ## License
 
 MIT
+
+## Repository maintenance in 01.01.02
+
+`main` is the production branch; `dev` remains the retained development branch. Dependency branches are retired only after their commits are ancestors of the released `main` commit. The consolidation uses merge ancestry rather than squash so branch history remains recoverable.
+
+The development compiler is TypeScript 7.0.2. Install exactly the reviewed graph with `npm ci --ignore-scripts`, then run `npm audit --audit-level=high` and `npm run validate`. The security check pins the complete lockfile SHA-256; a dependency change requires an explicit review and pin update, not disabling the check. Browser users receive no npm packages.
+
+The version-scoped **Finalize 01.01.02** workflow runs after this release's notes reach `main`, or can be retried from Actions with `main` selected. It refuses any other version or repository. It waits for successful Security validation, CodeQL and Pages runs for the exact commit, preserves new and previous static artifacts plus a Git bundle, creates the matching release tag, and deletes only the named integrated branches with expected-SHA leases. It never deletes `main` or `dev` or force-updates either branch. See the release notes and rollback guide before retrying a partial release.

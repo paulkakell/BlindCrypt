@@ -1,21 +1,20 @@
-# Commit notes for 01.01.01
+# Commit notes for 01.01.02
 
 ```text
-security: fix smoke-server filesystem race for 01.01.01
+fix(release): consolidate validated dependency branches for 01.01.02
 
-Release: 01.01.01
-Tag after protected merge: v01.01.01
-Refs: GHAS-PR-1, CodeQL alert 1, PR #1
-Baseline: b57c01dd515011273832064f0645842655196be7
+Release: 01.01.02
+Tag: v01.01.02 on the validated main merge commit only
 
-- replace stat-then-read validation with a fixed route allowlist
-- prevent request paths from becoming filesystem paths
-- reject traversal-shaped, unlisted, and non-GET requests
-- add regression coverage for the CodeQL finding
-- make authenticated-header tamper coverage deterministic across version increments
-- update version, changelog, SBOM, security policy, release notes, validation, and rollback evidence
+Integrate PRs #2, #7, #10 and #11 while preserving merge ancestry.
+Copy PBKDF2 salt before asynchronous WebCrypto calls for TypeScript 7
+compatibility and deterministic caller-buffer handling.
+Pin the complete reviewed dependency lockfile with SHA-256.
+Add salt and lockfile-tampering regression coverage.
+Validate main pushes, retain dev, and preserve rollback artifacts before
+expected-SHA deletion of integrated dependency and release branches.
+Update release, API, architecture, security and rollback documentation.
 
-Change type: non-breaking security bug fix
-Compatibility: format v3 writer and v1/v2/v3 reader behavior unchanged
-Rollback: revert the 01.01.01 commits to the validated 01.01.00 candidate; retain format v3 support
+No public API, container format or database migration change.
+Hosted validation, CodeQL and Pages must pass before final release cleanup.
 ```
