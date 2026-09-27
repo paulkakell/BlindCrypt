@@ -2,7 +2,7 @@ name: Security validation
 
 on:
   push:
-    branches: [main, dev, release/01.01.02]
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
@@ -25,13 +25,13 @@ jobs:
           persist-credentials: false
 
       - name: Archive exact review source
-        run: git archive --format=tar --output=source-01.01.02.tar HEAD
+        run: git archive --format=tar --output=source.tar HEAD
 
       - name: Preserve review source
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: source-01.01.02-${{ github.sha }}
-          path: source-01.01.02.tar
+          name: source-${{ github.sha }}
+          path: source.tar
           if-no-files-found: error
           retention-days: 14
 
