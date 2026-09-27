@@ -47,7 +47,7 @@ import {
  * @param {Blob} source
  * @param {string} passphrase
  * @param {EncryptOptions} options
- * @param {(bytes: Uint8Array) => Promise<void> | void} write
+ * @param {(bytes: Uint8Array<ArrayBuffer>) => Promise<void> | void} write
  * @param {number} maxSize
  */
 async function encryptRecords(source, passphrase, options, write, maxSize) {
@@ -218,7 +218,7 @@ function validateV3Header(header, maxSize) {
  * @param {Blob} source
  * @param {string} passphrase
  * @param {((percent: number, message: string) => void) | undefined} onProgress
- * @param {(bytes: Uint8Array) => Promise<void> | void} write
+ * @param {(bytes: Uint8Array<ArrayBuffer>) => Promise<void> | void} write
  * @param {number} maxSize
  * @param {AbortSignal} [signal]
  */

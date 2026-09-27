@@ -39,3 +39,13 @@ jobs:
         uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: /language:javascript-typescript
+          output: codeql-results
+
+      - name: Preserve security findings for review
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codeql-findings-${{ github.sha }}
+          path: codeql-results/*.sarif
+          if-no-files-found: warn
+          retention-days: 30
