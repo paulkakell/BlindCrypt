@@ -37,6 +37,8 @@ jobs:
         run: npm audit --audit-level=high
 
       - name: Validate and build
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
         run: npm run validate
 
       - name: Upload Pages artifact

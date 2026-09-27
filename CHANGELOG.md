@@ -1,5 +1,30 @@
 # Changelog
 
+## 02.00.00 (release candidate, 2026-09-27)
+
+Related: #13. Baseline commit: `d9ac4217604c248e73b34edebcbdbd6e8af80b06`. Candidate/production hashes and CI evidence are recorded in the PR and tracker after publication; no hash is fabricated here.
+
+### Additive
+
+- Implement all nine accepted roadmap features: opaque output naming, bounded sequential batches, v3 verification without plaintext download, encrypted text, passphrase/settings/legacy re-encryption, opt-in offline installation, transactional large-file streams, Node CLI, and restricted single-recipient JWE with protected identities.
+- Add direct Node-crypto interoperability, stream failure/cancellation/size tests, CLI no-overwrite and secret-input checks, offline cache-policy tests and a real Chromium workflow suite.
+- Produce deterministic offline asset manifests/icons and complete static/CLI checksums; preserve validation logs in CI.
+
+### Fixes
+
+- Stop exposing the original filename in default encrypted outer names.
+- Clear visible generated secrets after operations and preserve I/O error causes while aborting incomplete output.
+- Expand SAST to all added browser modules, service worker and CLI while keeping the exact reviewed dependency lock pin.
+
+### Breaking
+
+- Optional offline behavior introduces narrowly scoped public-asset fetch/cache operations after explicit enablement; no user file or secret enters them.
+- Default outer filenames change; revealing naming remains explicit.
+- Recipient JWE and v3 above the old 64 MiB ceiling require a 02.00.00-capable reader. Existing buffered v3 API signatures and v1/v2 reading remain available.
+
+No new runtime/development dependency or database migration. Independent crypto and native browser/device review are release gates, not inferred from automated tests. See `docs/ROADMAP.md`, `docs/RELEASE_02.00.00.md` and `docs/VALIDATION_02.00.00.md`.
+
+
 BlindCrypt versions use `xx.xx.xx` as `<Release>.<Feature Update>.<Bug Fix>`.
 
 ## [01.01.02] - 2026-09-27

@@ -1,123 +1,71 @@
 # BlindCrypt
 
-BlindCrypt is a static browser application for authenticated client-side file encryption. Version `01.01.02` writes format v3 containers and reads format v1, v2, and v3 files.
+BlindCrypt `02.00.00` is a local-first file and text encryption application with a shared-core Node.js CLI. This is a release candidate until the exact commit passes the [release gates](docs/ROADMAP.md). It has no accounts, backend, uploads, analytics, or runtime package dependencies.
 
-The application has no runtime dependencies, backend, account system, telemetry, analytics, or network requests. The hosting server delivers static files. Encryption and decryption use the browser WebCrypto implementation.
+Ordinary passphrase files use authenticated format v3; v1/v2 remain readable with legacy warnings. Browser encryption uses WebCrypto. Optional offline installation fetches and caches only fixed application assets. User files, plaintext, passphrases and private keys are never put in application storage or network requests.
 
-## Primary use cases
+## Features
 
-- Encrypt a document before sending it through email, cloud storage, chat, or another untrusted transport.
-- Decrypt a received `.blindcrypt` file without uploading its contents to a service.
-- Generate a uniformly selected multiword passphrase for out-of-band exchange.
-- Open older BlindCrypt v1 or v2 files while receiving an explicit warning about their legacy integrity limits.
+| Workflow | Example | Limits and important behavior |
+|---|---|---|
+| Private filenames | Encrypt `business-plan.pdf` into a random `.blindcrypt` name | Original authenticated name is restored on decryption; revealing outer names is opt-in |
+| Batch files | Select or drop several documents | Up to 100 files; buffered queue approximately 64 MiB combined; sequential per-file results and cancellation |
+| Verify | Check an encrypted backup without downloading plaintext | Full v3 authentication, up to 4 GiB; legacy completeness cannot be verified |
+| Text | Encrypt a note and copy its `BLINDCRYPT-TEXT-1.` representation | 64 KiB UTF-8; decrypted content is literal text, never rendered as HTML |
+| Re-encrypt | Change a secret, select a stronger level, or upgrade v1/v2 | Buffered 64 MiB workflow; creates a new copy without a plaintext download; old copies are not revoked |
+| Offline edition | Explicitly enable cached application assets | HTTPS/localhost and a built release required; updates require approval |
+| Large files | Encrypt/decrypt to a transactional local save target | v3 up to 4 GiB; capability-detected save picker, or CLI; no simple increase to the buffered limit |
+| CLI | `node cli/blindcrypt.mjs verify --input backup.blindcrypt` | Node.js 22+, hidden terminal prompt or bounded stdin; never silently overwrites output |
+| Recipient sharing | Encrypt for a verified public JWK | Restricted JWE RSA-OAEP-256/A256GCM, 16 MiB; encrypted private backup; no sender authentication; independent review pending |
 
-BlindCrypt does not protect data on a compromised device, inside a hostile browser or extension, or after plaintext is downloaded.
+The device, browser, operating system, WebCrypto implementation and loaded application must be trusted. BlindCrypt does not recover lost secrets, revoke copies, scan documents for malware, guarantee secure memory/disk erasure, or protect a compromised endpoint. See the [threat model](docs/THREAT_MODEL.md).
 
-## Use the application
+## Use
 
-1. Serve the repository through HTTPS or a local web server. Opening the page through `file://` is not recommended.
-2. Select **Encrypt** and choose a file no larger than 64 MiB.
-3. Select a security level. **Strong** is the default.
-4. Generate a passphrase or enter a non-repetitive custom passphrase of at least 16 characters with sufficient character variety. Generated phrases require at least six bundled words.
-5. Store the passphrase separately, confirm it, then select **Encrypt and download**.
-6. Send the `.blindcrypt` file and passphrase through separate channels.
+Serve the validated `dist/` directory over HTTPS or a controlled localhost server. Do not rely on `file://`. Select a workflow tab, choose local input, and provide the required secret or recipient key. Store generated secrets separately and confirm them before encryption. Share ciphertext and its passphrase through separate channels.
 
-For decryption, select **Decrypt**, choose the encrypted file, enter the passphrase, and select **Decrypt and download**. Format v3 restores the authenticated filename. Legacy output is downloaded as `legacy-decrypted.bin` because legacy metadata is not authenticated.
+**Strong** remains the default. New passphrase validation is enforced in the browser workflows and CLI. Legacy secrets are interpreted as originally entered; v3 secrets use NFC normalization.
 
-## Security-level options
+| Level | PBKDF2-HMAC-SHA-256 iterations | Generated words |
+|---|---:|---:|
+| Standard | 600,000 | 6 |
+| Strong | 900,000 | 8 |
+| High | 1,200,000 | 10 |
+| Critical | 2,400,000 | 16 |
 
-| Option | PBKDF2-SHA-256 iterations | Generated words | Intended use |
-|---|---:|---:|---|
-| Standard | 600,000 | 6 | Routine files when device speed is constrained |
-| Strong | 900,000 | 8 | Default balance for ordinary sensitive files |
-| High | 1,200,000 | 10 | Higher-value files on capable devices |
-| Critical | 2,400,000 | 16 | Maximum configured passphrase and KDF cost |
+The generator selects uniformly from the bundled 2,048-word BIP39 English list with `crypto.getRandomValues`. Custom passphrases are not assigned entropy estimates. The text, large-file browser and private-backup workflows use Strong; the standard file, re-encryption and CLI passphrase-encryption workflows expose the level selector.
 
-The word generator selects from the bundled 2,048-word BIP39 English list using `crypto.getRandomValues`. Six words provide approximately 66 bits when each word is independently generated. BlindCrypt does not assign entropy estimates to custom passphrases.
+Detailed instructions and every option: [user guide](docs/USER_GUIDE.md), [CLI](docs/CLI.md), [offline/trusted releases](docs/OFFLINE.md).
 
-## Format v3 security properties
-
-- AES-256-GCM encrypts a fixed-size metadata record and each 512 KiB data record.
-- PBKDF2-HMAC-SHA-256 derives a nonextractable key from the NFC-normalized passphrase and a random 128-bit salt.
-- Each record uses a unique 96-bit IV composed of a random 64-bit prefix and a 32-bit record counter.
-- The exact binary header frame, record type, record index, and plaintext record length are AES-GCM additional authenticated data.
-- Filename and media type are encrypted inside a fixed-size metadata block.
-- Header size, salt, IV, KDF cost, file size, record count, record geometry, metadata size, and final container length are validated before decryption proceeds.
-- Truncation, appended bytes, record substitution, reordered records, public-header changes, metadata changes, and ciphertext changes cause rejection.
-
-See [docs/FORMAT.md](docs/FORMAT.md) for the byte-level specification and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for assumptions and exclusions.
-
-## Legacy compatibility
-
-BlindCrypt reads v1 and v2 files so existing data remains accessible. Legacy passphrases are used exactly as entered; NFC normalization applies only to v3.
-
-Legacy limitations cannot be repaired after encryption:
-
-- v1 and v2 metadata is public and unauthenticated.
-- v2 authenticates individual records, but the original format does not authenticate the complete file structure.
-- Legacy filenames and MIME types are treated as untrusted. Downloads use a neutral filename and `application/octet-stream`.
-- Strict bounds and exact-length checks reject malformed legacy files, excessive KDF settings, and trailing data, but they cannot add missing cryptographic commitments to previously created files.
-
-## Browser and resource limits
-
-The current browser-only implementation accepts plaintext files up to 64 MiB. Encryption and decryption process 512 KiB slices, then assemble a downloadable `Blob`. The ceiling limits memory amplification and malicious local-file resource consumption. A future large-file mode should use a reviewed writable-stream design rather than increasing this limit.
-
-## Local development
-
-Requirements: Node.js 22 or newer and Python 3 or another static HTTP server.
+## Development and validation
 
 ```bash
 npm ci --ignore-scripts
 npm audit --audit-level=high
-npm run validate
-python -m http.server 8080
+CHROME_BIN=/usr/bin/google-chrome npm run validate
+python3 -m http.server 8080 --directory dist
 ```
 
-Open `http://localhost:8080`.
+`npm run validate` runs lint, strict browser/worker type checks, all Node unit/integration/regression tests, custom SAST, configuration checks, deterministic build, HTTP smoke, performance checks, and actual Chromium workflow tests. It does not substitute an HTTP fetch for browser coverage. The browser test uses Node's built-in DevTools WebSocket and an installed Chromium/Chrome executable, not an additional npm dependency. On a local Chromium system use `CHROME_BIN=/usr/bin/chromium`.
 
-Validation commands:
+`npm run validate:core` runs all non-browser checks for diagnostics; it is not a complete release gate. `npm run browser` runs the built-artifact browser checks separately. `npm run build` creates the site, CLI, generated icons, digest-pinned service worker and `SHA256SUMS`. The source `sw.js` intentionally cannot install before a build.
 
-```bash
-npm run lint       # syntax, HTML policy, word-list, and unsafe-API checks
-npm run typecheck  # strict TypeScript checking over production JavaScript
-npm test           # unit, integration, and regression tests
-npm run security   # local SAST and dependency allowlist checks
-npm run config     # workflow, version, default, and policy checks
-npm run build      # clean static artifact plus SHA256SUMS
-npm run smoke      # allowlisted local HTTP retrieval of the built artifact
-npm run perf       # 1 MiB authenticated round-trip performance smoke test
-```
+The only locked development dependency remains TypeScript 7.0.2. `npm ci` verifies the existing reviewed lock graph. The SAST check pins the complete lockfile digest; do not disable that check for dependency updates. Browser users receive no npm packages.
 
-`npm run validate` executes all commands in release order. The smoke server uses a fixed route allowlist. Request paths never become filesystem paths, preventing path traversal and filesystem check/use races in the validation utility.
+## Architecture and compatibility
 
-## CI and deployment
+V3 uses AES-256-GCM for encrypted fixed-size metadata and 512 KiB records. Exact header bytes, record kind, index and length are authenticated. Bounds, KDF cost, record geometry and total length are checked before expensive work wherever possible. Streaming uses the same framing, not an unauthenticated archive format.
 
-- `.github/workflows/ci.yml` validates pushes to `dev` and pull requests into `main` or `dev`.
-- `.github/workflows/codeql.yml` runs CodeQL with extended security queries.
-- `.github/workflows/pages.yml` builds and deploys the validated `dist/` artifact after changes reach `main`.
-- All referenced GitHub Actions are pinned to full commit SHAs.
-- Production Pages settings must use **GitHub Actions** as the deployment source. Required repository settings are listed in [docs/REPOSITORY_SETTINGS.md](docs/REPOSITORY_SETTINGS.md).
+V1/v2 metadata and whole-file completeness have historical limitations that cannot be repaired retrospectively. Their plaintext can be migrated into a new authenticated file, but migration does not certify the historical source.
 
-## Versioning and releases
+Recipient envelopes are standard JWE Compact Serialization with a documented BlindCrypt inner payload, not v3 containers and not compatible with old readers. RSA-OAEP-256 wraps a fresh 256-bit content key; A256GCM encrypts the payload. The recipient fingerprint follows RFC 7638. No remote key lookup or algorithm negotiation is accepted. See [format](docs/FORMAT.md), [API](docs/API.md), and [architecture](docs/ARCHITECTURE.md).
 
-BlindCrypt uses `xx.xx.xx` as `<Release>.<Feature Update>.<Bug Fix>`. The repository version is stored in `VERSION` and exposed through `APP_VERSION`.
+## Roadmap, releases and rollback
 
-Development commits carry the next version but are not tagged. After the validated commit reaches `main`, create the matching immutable tag, such as `v01.01.02`, and attach the `dist/` artifact, `SHA256SUMS`, SPDX SBOM, release notes, and validation evidence. Do not tag a commit that did not pass the full workflow.
+All accepted work and remaining release gates are tracked in [roadmap issue #13](https://github.com/paulkakell/BlindCrypt/issues/13) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
-See [CHANGELOG.md](CHANGELOG.md), [docs/RELEASE_01.01.02.md](docs/RELEASE_01.01.02.md), [COMMIT_NOTES.md](COMMIT_NOTES.md), [docs/VALIDATION_01.01.02.md](docs/VALIDATION_01.01.02.md), [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), and [docs/ROLLBACK.md](docs/ROLLBACK.md).
+Version format is `<Release>.<Feature Update>.<Bug Fix>`, two digits per field. Development commits identify the target version but are not production release tags. After exact-commit validation, review and merge, create `v02.00.00` and publish source, static/CLI artifact, checksums, SBOM, release notes and validation evidence. Retain `v01.01.02`, but do not roll back to an old reader after creating large-profile or recipient files without retaining the newer recovery reader.
 
-## Security reports
+See [changelog](CHANGELOG.md), [release notes](docs/RELEASE_02.00.00.md), [validation](docs/VALIDATION_02.00.00.md), [checklist](docs/RELEASE_CHECKLIST.md), [rollback](docs/ROLLBACK.md), and [commit notes](COMMIT_NOTES.md).
 
-Do not open a public issue for an undisclosed vulnerability. Follow [SECURITY.md](SECURITY.md).
-
-## License
-
-MIT
-
-## Repository maintenance in 01.01.02
-
-`main` is the production branch; `dev` remains the retained development branch. Dependency branches are retired only after their commits are ancestors of the released `main` commit. The consolidation uses merge ancestry rather than squash so branch history remains recoverable.
-
-The development compiler is TypeScript 7.0.2. Install exactly the reviewed graph with `npm ci --ignore-scripts`, then run `npm audit --audit-level=high` and `npm run validate`. The security check pins the complete lockfile SHA-256; a dependency change requires an explicit review and pin update, not disabling the check. Browser users receive no npm packages.
-
-The version-scoped **Finalize 01.01.02** workflow runs after this release's notes reach `main`, or can be retried from Actions with `main` selected. It refuses any other version or repository. It waits for successful Security validation, CodeQL and Pages runs for the exact commit, preserves new and previous static artifacts plus a Git bundle, creates the matching release tag, and deletes only the named integrated branches with expected-SHA leases. It never deletes `main` or `dev` or force-updates either branch. See the release notes and rollback guide before retrying a partial release.
+Report undisclosed vulnerabilities through [SECURITY.md](SECURITY.md), not a public issue. MIT license.

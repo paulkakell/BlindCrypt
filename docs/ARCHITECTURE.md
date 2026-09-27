@@ -1,81 +1,64 @@
-# Architecture
+# Architecture: 02.00.00
 
-BlindCrypt is a static single-page application with no server-side data path.
-
-```text
-User-selected File/Blob
-        |
-        v
-assets/app.js  <----  assets/passphrase.js  <----  bundled word list
-        |
-        v
-assets/crypto.js public facade
-        |
-        +--> assets/crypto-v3.js
-        +--> assets/crypto-legacy.js
-        +--> assets/crypto-core.js
-              |  validate limits and format
-              |  PBKDF2 through WebCrypto
-              |  AES-GCM metadata and records
-  v
-Downloadable application/octet-stream Blob
-```
-
-For decryption:
+BlindCrypt has two local user interfaces and no server-side data path:
 
 ```text
-.blindcrypt File/Blob
-        |
-        v
-Bounded format detector
-   |                     |
-   | v3                  | v1/v2 legacy
-   v                     v
-Canonical parser      Strict legacy parser
-Exact geometry        Bounds and exact lengths
-Header AAD             Neutral metadata handling
-   |                     |
-   +----------+----------+
-              v
-          WebCrypto
-              |
-              v
-    Downloadable neutral Blob
+Browser selected File / text                 CLI explicit input path
+          |                                           |
+       app.js                                    cli/blindcrypt.mjs
+          |                                           |
+          +-------- features / recipients ------------+
+          |                                           |
+          +-------------- crypto.js ------------------+
+                             |
+               +-------------+-------------+
+               |             |             |
+          crypto-v3     crypto-legacy   crypto-core
+          record I/O    bounded read    limits/KDF/AAD
+               |             |             |
+               +-------------+-------------+
+                             |
+                        WebCrypto
+                             |
+            buffered Blob OR transactional sink
+                      |                |
+               local download      private staged output
+                                   close/commit OR abort
 ```
 
-## Components
+`app.js` owns DOM accessibility, selection/drop queues, cancellation, bounded workflow selection, literal text display and user-approved local downloads. `features.js` owns shared secret validation, opaque filenames, sequential status queues, text armor and bounded re-encryption. The existing passphrase/wordlist modules remain dependency-free.
 
-### `assets/app.js`
+`crypto-v3.js` separates record production/consumption from output allocation. Existing 64 MiB Blob APIs and the 4 GiB streaming APIs call the same validated framing/record functions. Verify supplies a discard consumer rather than allocating a plaintext Blob. Every decrypted record is authenticated before consumption; transaction completion requires the complete container. Plaintext buffers are wiped on a best-effort basis, not with a claim of guaranteed JavaScript zeroization.
 
-Owns DOM interaction, accessibility state, progress reporting, user-facing validation, local downloads, generic failure messages, and legacy warnings. It contains no cryptographic primitive logic.
+`cli/io.mjs` implements a private exclusive temporary file and non-overwriting hard-link commit. A browser `FileSystemWritableFileStream` provides its native transaction adapter. A plain nontransactional stream does not satisfy the public sink contract.
 
-### `assets/passphrase.js`
+`recipients.js` implements the fixed single-recipient JWE profile using WebCrypto RSA-OAEP-256 and A256GCM. It does not negotiate algorithms or retrieve keys. Public keys are fingerprint-confirmed outside encryption. Private backups use the existing passphrase-encrypted v3 container. JWE is bounded rather than presented as a streaming primitive. See [FORMAT.md](FORMAT.md).
 
-Validates the 2,048-word list, generates uniformly indexed word phrases, assesses generated word-list phrases, and applies minimum rules to new custom passphrases. It does not estimate custom entropy.
-
-### `assets/crypto-core.js`, `assets/crypto-v3.js`, `assets/crypto-legacy.js`, and the `assets/crypto.js` public facade
-
-Owns format framing, bounds, canonical parsing, passphrase normalization for v3, PBKDF2, IV construction, AES-GCM additional authenticated data, metadata encryption, v3 encryption/decryption, and bounded legacy readers.
-
-### Build and validation
-
-Node scripts provide syntax checks, policy linting, strict type checking, tests, custom SAST, configuration checks, deterministic static builds, SHA-256 manifests, and a performance smoke test. GitHub Actions run the same validation in a clean environment and retain the resulting artifact.
-
-## Data flow constraints
-
-- No application code calls `fetch`, `XMLHttpRequest`, `WebSocket`, or `EventSource`.
-- No plaintext, passphrase, metadata, or filename is placed in local storage, session storage, cookies, URL parameters, logs, or telemetry.
-- Runtime executable resources are same-origin files covered by CSP.
-- Output MIME type is `application/octet-stream`; authenticated original type is informational metadata only.
-
-## Release maintenance path (01.01.02)
+## Optional offline path
 
 ```text
-Reviewed dependency heads -> release/01.01.02 -> pull-request validation + CodeQL
-                                             -> merge commit on main
-                                             -> main validation + CodeQL + Pages
-                                             -> version tag + rollback artifacts
-                                             -> expected-SHA branch retirement
+Explicit enable -> offline.js -> same-origin service worker registration
+                                       |
+                            build-pinned public asset URLs
+                                       |
+                          fetch + SHA-256 verification
+                                       |
+                      complete version/build-specific cache
+                                       |
+                     explicit update approval when waiting
 ```
 
-The release workflow has repository write permission only for publication and the explicitly scoped cleanup. Ordinary validation remains read-only. Runtime browser code remains independent of GitHub tokens, npm packages and release automation.
+The normal document keeps `connect-src 'none'`; cryptographic/UI modules have no upload/network API. The optional worker is the narrowly defined exception: it fetches only build-owned application URLs during installation. `offline.js` sends one fixed activation-control message, never file data or secrets. Selected files and decrypted bytes cannot enter the cache through this design. Unbuilt worker source refuses installation.
+
+## Build, test and release path
+
+```text
+issue #13 -> release/02.00.00 -> focused tests and local diagnostic checks
+          -> pull-request locked install/audit/full validation + CodeQL
+          -> reviewed exact-head merge -> main validation + Pages
+          -> v02.00.00 tag + source/static/CLI/SBOM/checksum/evidence artifacts
+```
+
+The deterministic build copies the application and CLI, generates icons, pins exact offline asset digests, and writes a complete checksum manifest. The CI source archive and validation log identify the candidate commit. Existing actions remain pinned to full SHAs. Runtime assets contain no GitHub credentials or build-tool packages.
+
+CodeQL and custom SAST cover the browser, worker and CLI; strict JavaScript type checks cover browser and worker modules. CLI interfaces are checked through syntax, SAST, CodeQL and integration tests rather than pretending that Node ambient type definitions were added. There is no new dependency, database, backend authentication, telemetry service or secret-bearing log pipeline.

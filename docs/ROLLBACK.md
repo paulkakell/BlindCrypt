@@ -1,45 +1,29 @@
-# Rollback plan
+# Rollback and recovery: 02.00.00
 
-## Before production release
+Baseline: `v01.01.02`, commit `d9ac4217604c248e73b34edebcbdbd6e8af80b06`. Preserve its released source/artifacts. Also preserve the validated 02.00.00 reader, static/CLI artifact and checksums before any rollout. Existing rollback instructions for the historical release are retained in Git history.
 
-Keep `dev` and its history. Before production promotion, revert failed changes on the release branch or create a corrective commit; do not force-reset or delete the retained development branch.
+## Before a candidate reaches production
 
-## After format v3 is released
+Close or revert the candidate PR without moving protected branches or changing immutable tags. `main` remains unchanged. Keep issue #13 open with actual implementation/validation status. Delete no encrypted user files, identities or prior artifacts.
 
-Do not restore the unversioned baseline as the only production reader. It cannot open v3 files.
+## After users create new files
 
-Preferred rollback sequence:
+Do not blindly redeploy an older reader as the only recovery path. V1/v2 and buffered v3 remain accessible in old compatible releases, but v3 above 64 MiB and recipient JWE need the newer reader. A UI/worker regression can be reverted while retaining the new reader modules. If the hosted edition is unhealthy, use the retained verified local CLI/browser artifact on a trusted device.
 
-1. Stop further deployment from the faulty commit.
-2. Restore the most recent validated static artifact that still contains the v3 reader.
-3. Revert interface, styling, workflow, or non-format changes independently.
-4. Keep v1, v2, and v3 decryption support available.
-5. If the v3 writer itself is defective, disable new encryption while retaining decryption and publish a security notice.
-6. Issue a corrected `xx.xx.xx` version and tag after full validation.
+To undo a passphrase migration, retain and use the original encrypted copy until its replacement is verified. There is no revocation or destructive in-place conversion. For recipient data retain the encrypted private backup and its passphrase; generating a new identity does not restore access to an old one.
 
-## Git operations
+## Offline recovery
 
-- identify the deployed tag and commit SHA
-- create a rollback branch from the last validated compatible tag
-- revert the faulty commit without force-pushing protected branches
-- run the complete validation suite
-- merge through the protected process
-- redeploy the validated artifact
+Installed application assets can outlive a server rollback. Publish a newly versioned corrective worker/build with explicit approval, or instruct users to remove the site's public cache/registration through browser controls and load a verified local release. Do not falsely label an older reader with the newer version or reuse an immutable release tag for different bytes. Existing sensitive files are not in the service-worker cache and must not be deleted as part of cache recovery.
 
-## Verification
+A broken worker might prevent an in-app repair flow. Keep out-of-band local-use instructions and recovery artifacts available. Independent verification of the trusted source matters because a checksum fetched from the same compromised origin is not sufficient origin authentication.
 
-After rollback, confirm:
+## Transactional failures
 
-- the visible application version and artifact checksum match the intended rollback version
-- v1, v2, and representative v3 fixtures decrypt
-- new encryption is either verified or intentionally disabled
-- CSP, no-network behavior, file limits, and neutral legacy output remain intact
-- Pages reports the expected deployment commit
+The browser/CLI aborts incomplete staged output on recoverable cancellation, write error and authentication failure. The browser may leave an empty placeholder chosen in its save picker. CLI hard-link commit refuses an existing destination; it removes only its own `.blindcrypt-*.partial` temporary path. Unexpected kill, power loss, or unlink failure can leave such a path; inspect it in the trusted destination directory and remove it deliberately after confirming which complete output exists. Temporary plaintext deletion is not secure erasure.
 
-## 01.01.02 recovery
+Keygen's two downloads/outputs are not one atomic filesystem transaction. Preserve the encrypted private backup even if public export fails. Do not delete a valid backup merely to rerun key generation.
 
-Pre-consolidation `main`: `0aff0635c4edd0ea4e4bde964815f5555bae7718` (01.01.01). The release preserves `blindcrypt-01.01.01-rollback.tar.gz`, `blindcrypt-01.01.02.tar.gz`, `blindcrypt-pre-cleanup.bundle` and `RELEASE-SHA256SUMS` before deleting any branch. Verify checksums before using the artifacts. Both versions retain the v3 reader.
+## Verification after rollback
 
-To restore an individual retired branch, use its exact SHA from `docs/RELEASE_01.01.02.md`: `git branch <original-name> <recorded-sha>` then `git push origin <original-name>`. Do not overwrite an existing branch. The recorded commits also remain ancestors of `main`; the Git bundle provides an independent history backup (`git bundle verify blindcrypt-pre-cleanup.bundle`).
-
-For application rollback, redeploy the preserved 01.01.01 static artifact, or create a rollback pull request reverting the consolidation merge with `git revert -m 1 <merge-sha>`, then rerun validation. Do not reset `main`, rewrite the published tag, or return to the unversioned reader. A failed finalization retains branches until artifact and ancestry checks pass; a partial draft release must be inspected before retry.
+Run legacy and v3 fixtures, a large-profile round trip, recipient decryption with the preserved identity, malformed/tampered rejection, CLI no-overwrite/cleanup, and offline cache-version tests against the retained reader. Verify checksums, display version and exact commit evidence. There is no database migration or schema rollback. Record which versions remain needed for recovery and never announce rollback success based only on a page returning HTTP 200.

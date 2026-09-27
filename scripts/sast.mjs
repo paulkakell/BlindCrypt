@@ -1,18 +1,20 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
 const failures = [];
-const assets = [
-  "assets/crypto-core.js",
-  "assets/crypto-v3.js",
-  "assets/crypto-legacy.js",
-  "assets/crypto.js",
-  "assets/passphrase.js",
-  "assets/app.js",
-];
-const content = (await Promise.all(assets.map((path) => readFile(resolve(root, path), "utf8")))).join("\n");
+const assets = (await readdir(resolve(root, "assets"))).filter((name) => name.endsWith(".js") && name !== "wordlist.js").map((name) => `assets/${name}`);
+const sources = await Promise.all(assets.map(async (path) => {
+  let source = await readFile(resolve(root, path), "utf8");
+  // Only a fixed, non-sensitive control message to this origin's service worker.
+  // Every other message channel remains forbidden, including in offline.js.
+  if (path === "assets/offline.js") source = source.replace('registration.waiting.postMessage({ type: "ACTIVATE" })', 'ACTIVATION_CONTROL');
+  return source;
+}));
+const additional = ["sw.js", "cli/blindcrypt.mjs", "cli/io.mjs"];
+for (const path of additional) sources.push(await readFile(resolve(root, path), "utf8"));
+const content = sources.join("\n");
 
 const disallowed = [
   [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u, "private key material"],

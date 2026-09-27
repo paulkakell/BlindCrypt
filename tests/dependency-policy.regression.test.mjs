@@ -12,6 +12,8 @@ async function checkPolicy(mutate) {
   try {
     await mkdir(join(temporary, "scripts"));
     await cp(join(root, "assets"), join(temporary, "assets"), { recursive: true });
+    await cp(join(root, "cli"), join(temporary, "cli"), { recursive: true });
+    await cp(join(root, "sw.js"), join(temporary, "sw.js"));
     for (const file of ["package.json", "package-lock.json", "scripts/sast.mjs"]) {
       await cp(join(root, file), join(temporary, file));
     }

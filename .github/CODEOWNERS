@@ -5,3 +5,9 @@
 /SECURITY.md @paulkakell
 /docs/FORMAT.md @paulkakell
 /docs/THREAT_MODEL.md @paulkakell
+
+/assets/recipients.js @paulkakell
+/assets/features.js @paulkakell
+/assets/offline.js @paulkakell
+/sw.js @paulkakell
+/cli/ @paulkakell

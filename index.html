@@ -4,10 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'none'; font-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'; media-src 'none'; manifest-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'self'; media-src 'none'; manifest-src 'self'">
   <meta name="description" content="Client-side authenticated file encryption and decryption. Passphrases and plaintext remain on the device.">
   <title>BlindCrypt</title>
   <link rel="stylesheet" href="assets/app.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#142133">
 </head>
 <body>
   <header class="wrap siteHeader">
@@ -24,17 +26,22 @@
     <nav class="tabs" role="tablist" aria-label="BlindCrypt operations">
       <button id="tab-encrypt" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="panel-encrypt" data-tab="encrypt">Encrypt</button>
       <button id="tab-decrypt" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-decrypt" data-tab="decrypt" tabindex="-1">Decrypt</button>
+      <button id="tab-text" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-text" data-tab="text" tabindex="-1">Text</button>
+      <button id="tab-upgrade" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-upgrade" data-tab="upgrade" tabindex="-1">Re-encrypt</button>
+      <button id="tab-large" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-large" data-tab="large" tabindex="-1">Large files</button>
+      <button id="tab-recipients" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-recipients" data-tab="recipients" tabindex="-1">Recipients</button>
       <button id="tab-about" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-about" data-tab="about" tabindex="-1">About</button>
     </nav>
 
     <section id="panel-encrypt" class="panel" role="tabpanel" aria-labelledby="tab-encrypt">
-      <h2>Encrypt a file</h2>
+      <h2>Encrypt files</h2>
       <p class="sectionIntro">New files use BlindCrypt format v3. The public header, encrypted metadata, record order, record lengths, and every ciphertext record are authenticated.</p>
 
       <div class="grid">
         <div class="card">
           <label class="label" for="encFile">1. Choose a file</label>
-          <input id="encFile" type="file">
+          <div id="encDrop" class="dropzone"><input id="encFile" type="file" multiple><p class="hint">Drop files here, or use the file picker. Up to 100 files and 64 MiB combined.</p></div>
+          <label class="check"><input id="revealName" type="checkbox"> Include the original name in encrypted download names (less private)</label>
           <p class="hint">Maximum plaintext size: <strong id="maxFileSize">64 MiB</strong>. The limit controls browser memory exposure.</p>
         </div>
 
@@ -102,18 +109,19 @@
           <progress id="encProgress" max="100" value="0">0%</progress>
           <span id="encProgressText" class="mono"></span>
         </div>
+        <ol id="encResults" class="queue" aria-label="Encryption results"></ol>
         <div id="encStatus" class="status" aria-live="polite"></div>
       </div>
     </section>
 
     <section id="panel-decrypt" class="panel" role="tabpanel" aria-labelledby="tab-decrypt" hidden>
-      <h2>Decrypt a file</h2>
+      <h2>Decrypt or verify files</h2>
       <p class="sectionIntro">Format v3 verifies the complete container before download. Legacy v1 and v2 files remain readable with explicit limitations.</p>
 
       <div class="grid">
         <div class="card">
           <label class="label" for="decFile">1. Choose an encrypted file</label>
-          <input id="decFile" type="file" accept=".blindcrypt,application/octet-stream">
+          <div id="decDrop" class="dropzone"><input id="decFile" type="file" multiple accept=".blindcrypt,application/octet-stream"><p class="hint">Drop files here. Buffered decryption supports 64 MiB combined; verification supports individual v3 files up to 4 GiB.</p></div>
           <p class="hint">Malformed sizes, excessive KDF settings, inconsistent records, truncation, and trailing data are rejected before costly processing where possible.</p>
         </div>
 
@@ -139,12 +147,56 @@
 
       <div class="actions">
         <button id="doDecrypt" class="btn primary" type="button">Decrypt and download</button>
+        <button id="doVerify" class="btn secondary" type="button">Verify without downloading</button>
         <div class="progressGroup" aria-live="polite">
           <progress id="decProgress" max="100" value="0">0%</progress>
           <span id="decProgressText" class="mono"></span>
         </div>
+        <ol id="decResults" class="queue" aria-label="Decryption results"></ol>
         <div id="decStatus" class="status" aria-live="polite"></div>
       </div>
+    </section>
+
+
+    <section id="panel-text" class="panel" role="tabpanel" aria-labelledby="tab-text" hidden>
+      <h2>Encrypted text</h2>
+      <p class="sectionIntro">Messages use authenticated v3 encryption in a versioned text envelope. Limit: 64 KiB of UTF-8. Share the passphrase separately. Text is never rendered as HTML.</p>
+      <div class="grid">
+        <div class="card"><label class="label" for="textPlain">Plain text</label><textarea id="textPlain" rows="8" maxlength="65536" spellcheck="false" autocomplete="off"></textarea></div>
+        <div class="card"><label class="label" for="textCipher">Encrypted text</label><textarea id="textCipher" rows="8" maxlength="100000" spellcheck="false" autocomplete="off"></textarea></div>
+        <div class="card"><label class="label" for="textPass">Passphrase</label><input id="textPass" type="password" autocomplete="off"><label class="label" for="textConfirm">Confirm for encryption</label><input id="textConfirm" type="password" autocomplete="off"><button type="button" class="btn secondary" data-generate-for="textPass">Generate passphrase</button><p class="hint">Strong settings. Generated passphrases are temporarily visible. Store one separately before confirming it. All secret fields clear after an operation.</p></div>
+      </div>
+      <div class="actions"><button id="encryptText" class="btn primary" type="button">Encrypt text</button><button id="decryptText" class="btn secondary" type="button">Decrypt text</button><button id="copyText" class="btn secondary" type="button">Copy encrypted text</button><button id="clearText" class="btn secondary" type="button">Clear text</button><div id="textStatus" class="status" aria-live="polite"></div></div>
+    </section>
+
+    <section id="panel-upgrade" class="panel" role="tabpanel" aria-labelledby="tab-upgrade" hidden>
+      <h2>Re-encrypt an existing file</h2>
+      <p class="sectionIntro">Create a new v3 copy with a new passphrase or settings. No intermediate plaintext download. Limit: 64 MiB. This does not revoke old copies or establish missing legacy authenticity.</p>
+      <div class="grid">
+        <div class="card"><label class="label" for="upgradeFile">Encrypted file</label><input id="upgradeFile" type="file"><label class="label" for="upgradeOld">Existing passphrase</label><input id="upgradeOld" type="password" autocomplete="off"></div>
+        <div class="card"><label class="label" for="upgradeNew">New passphrase</label><input id="upgradeNew" type="password" autocomplete="off"><label class="label" for="upgradeConfirm">Confirm new passphrase</label><input id="upgradeConfirm" type="password" autocomplete="off"><button type="button" class="btn secondary" data-generate-for="upgradeNew">Generate passphrase</button></div>
+        <div class="card"><label class="label" for="upgradeLevel">New security level</label><select id="upgradeLevel"><option value="standard">Standard</option><option value="strong" selected>Strong</option><option value="high">High</option><option value="critical">Critical</option></select><label class="label" for="upgradeName">Optional restored filename</label><input id="upgradeName" type="text" maxlength="180" autocomplete="off"><p class="hint">Legacy files otherwise restore as legacy-decrypted.bin. Keep your original encrypted copy until you have verified the replacement.</p></div>
+      </div>
+      <div class="actions"><button id="doUpgrade" class="btn primary" type="button">Create re-encrypted copy</button><div id="upgradeStatus" class="status" aria-live="polite"></div></div>
+    </section>
+
+    <section id="panel-large" class="panel" role="tabpanel" aria-labelledby="tab-large" hidden>
+      <h2>Large-file streaming</h2>
+      <p class="sectionIntro">Up to 4 GiB, using 512 KiB records and a transactional save stream. Requires a browser with a local save-file picker. Other browsers retain the 64 MiB workflow above; the CLI is another option.</p>
+      <p class="hint warn">Choose a new output file. Decrypted bytes may be staged temporarily on disk; the destination is committed only after complete authentication. Cancellation cannot guarantee secure erasure of operating-system temporary files. Older BlindCrypt versions cannot open files beyond their 64 MiB limit.</p>
+      <div class="grid"><div class="card"><label class="label" for="largeFile">Input file</label><input id="largeFile" type="file"></div><div class="card"><label class="label" for="largePass">Passphrase</label><input id="largePass" type="password" autocomplete="off"><label class="label" for="largeConfirm">Confirm for encryption</label><input id="largeConfirm" type="password" autocomplete="off"><button type="button" class="btn secondary" data-generate-for="largePass">Generate passphrase</button></div></div>
+      <div class="actions"><button id="largeEncrypt" class="btn primary" type="button">Encrypt to a new file</button><button id="largeDecrypt" class="btn secondary" type="button">Decrypt v3 to a new file</button><progress id="largeProgress" max="100" value="0">0%</progress><div id="largeStatus" class="status" aria-live="polite"></div></div>
+    </section>
+
+    <section id="panel-recipients" class="panel" role="tabpanel" aria-labelledby="tab-recipients" hidden>
+      <h2>Recipient-key sharing</h2>
+      <p class="sectionIntro">Single-recipient JWE using RSA-OAEP-256 and AES-256-GCM. Limit: 16 MiB. This authenticates encrypted content, not the sender. New implementation: no independent cryptographic audit is claimed.</p>
+      <div class="grid">
+        <div class="card"><h3>Create an identity</h3><label class="label" for="identityPass">Private-backup passphrase</label><input id="identityPass" type="password" autocomplete="off"><label class="label" for="identityConfirm">Confirm backup passphrase</label><input id="identityConfirm" type="password" autocomplete="off"><button type="button" class="btn secondary" data-generate-for="identityPass">Generate passphrase</button><button id="createIdentity" type="button" class="btn primary">Create and download key files</button><p class="hint">Keep the encrypted .bckey backup and its passphrase private. Only share the public .json file and independently confirm its fingerprint. Allow both downloads.</p><output id="identityFingerprint" class="mono"></output></div>
+        <div class="card"><h3>Encrypt for a recipient</h3><label class="label" for="recipientPublic">Recipient public key (.json)</label><input id="recipientPublic" type="file" accept=".json"><label class="label" for="expectedFingerprint">Fingerprint received through an independent channel</label><input id="expectedFingerprint" type="text" maxlength="43" spellcheck="false" autocomplete="off"><label class="label" for="recipientFile">File to encrypt</label><input id="recipientFile" type="file"><button id="recipientEncrypt" type="button" class="btn primary">Encrypt for verified recipient</button><p class="hint">A fingerprint copied only from the same untrusted key file does not verify the recipient.</p></div>
+        <div class="card"><h3>Open a recipient file</h3><label class="label" for="recipientEnvelope">Encrypted file (.jwe)</label><input id="recipientEnvelope" type="file" accept=".jwe"><label class="label" for="identityBackup">Private backup (.bckey)</label><input id="identityBackup" type="file" accept=".bckey"><label class="label" for="identityUnlock">Backup passphrase</label><input id="identityUnlock" type="password" autocomplete="off"><button id="recipientDecrypt" type="button" class="btn primary">Decrypt recipient file</button><button id="recipientVerify" type="button" class="btn secondary">Verify without downloading</button></div>
+      </div>
+      <div id="recipientStatus" class="status" aria-live="polite"></div>
     </section>
 
     <section id="panel-about" class="panel" role="tabpanel" aria-labelledby="tab-about" hidden>
@@ -157,7 +209,7 @@
             <li>Format v3 authenticates the exact public header as additional data for every record.</li>
             <li>Filename and media type are stored inside a fixed-size encrypted metadata record.</li>
             <li>Strict limits constrain headers, KDF cost, file size, record count, and passphrase length.</li>
-            <li>The application contains no telemetry, network requests, or runtime dependencies.</li>
+            <li>File operations have no telemetry, uploads, or runtime dependencies. Optional offline installation retrieves and caches only application assets.</li>
           </ul>
         </article>
         <article class="card">
@@ -172,17 +224,22 @@
       </div>
       <p class="hint">Review the repository threat model and format specification before using BlindCrypt for high-value data.</p>
     </section>
+    <section class="panel" aria-label="Session controls">
+      <button id="cancelOperation" class="btn secondary" type="button" disabled>Cancel current operation</button>
+      <p class="hint">Cancellation takes effect between cryptographic operations. Batch downloads may require browser permission for multiple files.</p>
+      <div class="row"><button id="enableOffline" class="btn secondary" type="button">Enable offline edition</button><button id="applyUpdate" class="btn secondary" type="button" disabled>Apply downloaded update</button><button id="installApp" class="btn secondary" type="button" hidden>Install application</button></div>
+      <p id="offlineStatus" class="hint" aria-live="polite">Offline edition not enabled. No user files or secrets are cached.</p>
+    </section>
   </main>
 
   <footer class="wrap footer">
-    <span class="mono">BlindCrypt <span data-app-version>01.01.02</span></span>
+    <span class="mono">BlindCrypt <span data-app-version>02.00.00</span></span>
     <span aria-hidden="true">•</span>
     <span>Client-side authenticated file encryption</span>
     <span aria-hidden="true">•</span>
     <a href="https://github.com/paulkakell/BlindCrypt" target="_blank" rel="noopener noreferrer">Repository</a>
   </footer>
 
-  <script src="assets/wordlist.js"></script>
   <script type="module" src="assets/app.js"></script>
 </body>
 </html>

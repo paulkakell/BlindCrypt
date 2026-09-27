@@ -8,18 +8,20 @@ import {
   readBlobSlice,
 } from "./crypto-core.js";
 import { decryptLegacy } from "./crypto-legacy.js";
-import { decryptV3 } from "./crypto-v3.js";
+import { decryptV3, checkCancelled } from "./crypto-v3.js";
 
 export * from "./crypto-core.js";
-export { encryptBlobV3 } from "./crypto-v3.js";
+export { encryptBlobV3, verifyV3, encryptV3ToSink, decryptV3ToSink } from "./crypto-v3.js";
 
 /**
  * Decrypt v3 or read-compatible legacy v1/v2 containers.
  * @param {Blob} source
  * @param {string} passphrase
  * @param {(percent: number, message: string) => void} [onProgress]
+ * @param {AbortSignal} [signal]
  */
-export async function decryptBlobAny(source, passphrase, onProgress) {
+export async function decryptBlobAny(source, passphrase, onProgress, signal) {
+  checkCancelled(signal);
   requireWebCrypto();
   if (!(source instanceof Blob)) {
     throw new BlindCryptError("INVALID_INPUT", "Source must be a Blob");
@@ -29,7 +31,9 @@ export async function decryptBlobAny(source, passphrase, onProgress) {
   }
   const firstFour = await readBlobSlice(source, 0, 4);
   const isV3 = MAGIC.every((value, index) => firstFour[index] === value);
-  return isV3
-    ? decryptV3(source, passphrase, onProgress)
-    : decryptLegacy(source, passphrase, onProgress);
+  const result = isV3
+    ? await decryptV3(source, passphrase, onProgress, signal)
+    : await decryptLegacy(source, passphrase, onProgress);
+  checkCancelled(signal);
+  return result;
 }

@@ -1,20 +1,16 @@
-# Release checklist for 01.01.02
+# Release checklist: 02.00.00
 
-Version format: `<Release>.<Feature Update>.<Bug Fix>`, two digits per field. This maintenance patch increments 01.01.01 to 01.01.02.
+Use exact commit evidence, not inherited success from 01.01.02.
 
-The definitive evidence is the workflow result for the exact candidate/main SHA, not inherited checkboxes from a previous release.
+1. Confirm VERSION, APP_VERSION, UI fallback, worker, SBOM, documentation and notes agree on `02.00.00`; classify additions, fixes and breaking behavior in the changelog. Link #13 and actual implementation commits.
+2. Confirm every roadmap feature has code, user examples, positive/negative tests and explicit limits. Record unfinished release gates separately from implemented features.
+3. In a fresh Node 22 runner, run `npm ci --ignore-scripts`, current dependency audit, and full `npm run validate` with a configured Chromium executable. The reviewed lockfile must remain pinned; do not bypass failed checks.
+4. Inspect CodeQL security-extended results and custom SAST. Review keys, public fingerprints, input/CPU/memory bounds, transactional cleanup, CLI output privacy, optional asset-only network/cache paths and update handling.
+5. Verify native OS save-picker behavior, disk-full/cancellation, at least the intended browser/device matrix, and independent recipient-crypto review before high-value claims. Mark missing checks honestly.
+6. Confirm default Strong settings, opaque names, 64 MiB buffered/4 GiB streamed/16 MiB recipient/64 KiB text limits and legacy warnings. No backend accounts, environment secrets, database or migrations are introduced.
+7. Verify deterministic build/checksums, source/static/CLI artifacts, exact version and tested recovery readers. Preserve v01.01.02 artifacts and candidate readers for newly created formats.
+8. Merge only the reviewed PR head with its expected SHA; do not bypass protections or erase unrelated work. Rerun Security validation, CodeQL and Pages on the exact production SHA.
+9. Create immutable `v02.00.00` on that validated production commit. Attach release notes, source, static/CLI archive, SHA256SUMS, SBOM and validation evidence. Do not label a branch artifact as a published release.
+10. Test the deployed origin, installation and update paths. Record native-browser limitations, operational rollback instructions, tag/commit/run references and rollout decision in #13.
 
-1. Confirm VERSION, application/UI version, README, SBOM, security policy and release notes agree.
-2. Review PRs #2, #7, #10 and #11 and preserve all four source heads as merge ancestors.
-3. Install the locked development graph in a fresh Node 22.16.0 runner with scripts disabled; run the current npm vulnerability audit.
-4. Run lint, strict type checking, all unit/integration/regression tests, custom SAST, configuration validation, deterministic static build, HTTP smoke checks and the performance suite.
-5. Require the security-extended CodeQL workflow and inspect findings. A successful scanner run is not an independent security certification.
-6. Review credential handling, authorization, input bounds, logging and browser no-network controls. There is no server-side authentication or database migration in this release.
-7. Confirm existing v1/v2/v3 readers, v3 writer, defaults and public API remain compatible.
-8. Merge only the reviewed head with the checked expected SHA. Do not bypass any active protection or review requirement.
-9. Confirm Security validation, CodeQL and Pages succeed on the exact production SHA.
-10. Preserve release and rollback artifacts with checksums, and create v01.01.02 on that SHA before expected-SHA branch cleanup.
-11. Retain main and dev; synchronize dev by fast-forward only after successful release.
-12. Check the final branch list, PR states, release assets and tag, and record any unresolved operational limitation.
-
-Native graphical-browser testing and enforcement of the documented repository-protection settings require separate verification; do not describe an HTTP smoke test as browser interaction coverage.
+There is no automatic deletion of branches or old ciphertext. No asynchronous agent is implied by this roadmap; each iteration must be actually executed and recorded.
