@@ -1,0 +1,146 @@
+name: Finalize 01.01.02
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/RELEASE_01.01.02.md]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finalize-01.01.02
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.repository == 'paulkakell/BlindCrypt' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out the exact production commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require successful production gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(cat VERSION)" = '01.01.02'
+          python3 - <<'PY'
+          import json, os, subprocess, time
+          repo = 'paulkakell/BlindCrypt'
+          sha = os.environ['GITHUB_SHA']
+          required = {'.github/workflows/ci.yml', '.github/workflows/codeql.yml', '.github/workflows/pages.yml'}
+          for attempt in range(60):
+              raw = subprocess.check_output(['gh', 'api', f'repos/{repo}/actions/runs?head_sha={sha}&event=push&per_page=100'], text=True)
+              latest = {}
+              for run in json.loads(raw)['workflow_runs']:
+                  path = run['path'].split('@', 1)[0]
+                  if path in required and (path not in latest or run['id'] > latest[path]['id']):
+                      latest[path] = run
+              failed = [path for path, run in latest.items() if run['status'] == 'completed' and run['conclusion'] != 'success']
+              if failed:
+                  raise SystemExit('Production gate failed: ' + ', '.join(failed))
+              if required <= latest.keys() and all(latest[path]['conclusion'] == 'success' for path in required):
+                  break
+              time.sleep(10)
+          else:
+              raise SystemExit('Production gates did not complete; no release or cleanup performed')
+          current = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/git/ref/heads/main'], text=True))['object']['sha']
+          if current != sha:
+              raise SystemExit('main advanced; refusing to finalize a stale commit')
+          print(json.dumps({'event': 'release_gates_passed', 'commit': sha}))
+          PY
+
+      - name: Configure the validated Node.js version
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+
+      - name: Build release and preserve compatible rollback artifacts
+        run: |
+          node scripts/build.mjs
+          tar -czf blindcrypt-01.01.02.tar.gz -C dist .
+          git worktree add --detach "$RUNNER_TEMP/blindcrypt-rollback" 0aff0635c4edd0ea4e4bde964815f5555bae7718
+          node "$RUNNER_TEMP/blindcrypt-rollback/scripts/build.mjs"
+          tar -czf blindcrypt-01.01.01-rollback.tar.gz -C "$RUNNER_TEMP/blindcrypt-rollback/dist" .
+          git bundle create blindcrypt-pre-cleanup.bundle --all
+          git bundle verify blindcrypt-pre-cleanup.bundle
+          sha256sum blindcrypt-01.01.02.tar.gz blindcrypt-01.01.01-rollback.tar.gz blindcrypt-pre-cleanup.bundle > RELEASE-SHA256SUMS
+
+      - name: Preserve the version tag and draft release before branch retirement
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v01.01.02 --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null 2>&1; then
+            git fetch origin tag v01.01.02
+            test "$(git rev-parse 'v01.01.02^{commit}')" = "$GITHUB_SHA"
+            gh release view v01.01.02 --repo "$GITHUB_REPOSITORY" --json assets > "$RUNNER_TEMP/release-assets.json"
+            python3 - <<'PY'
+          import json, os
+          with open(os.path.join(os.environ['RUNNER_TEMP'], 'release-assets.json')) as stream:
+              names = {asset['name'] for asset in json.load(stream)['assets']}
+          required = {'blindcrypt-01.01.02.tar.gz', 'blindcrypt-01.01.01-rollback.tar.gz', 'blindcrypt-pre-cleanup.bundle', 'RELEASE-SHA256SUMS'}
+          if not required <= names:
+              raise SystemExit('Existing release is incomplete; inspect it before retrying. Nothing was deleted.')
+          PY
+          else
+            gh release create v01.01.02 --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft \
+              --title 'BlindCrypt 01.01.02' --notes-file docs/RELEASE_01.01.02.md \
+              blindcrypt-01.01.02.tar.gz blindcrypt-01.01.01-rollback.tar.gz blindcrypt-pre-cleanup.bundle RELEASE-SHA256SUMS
+          fi
+
+      - name: Delete only integrated heads with exact-SHA leases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          python3 - <<'PY'
+          import json, os, subprocess
+          sha = os.environ['GITHUB_SHA']
+          candidates = {
+              'dependabot/npm_and_yarn/typescript-7.0.2': '4792316950cd196960cffb170156667227e45773',
+              'dependabot/github_actions/actions/deploy-pages-5.0.1': '9e27a82605f443c5fe998e66785dda3458bfd90f',
+              'dependabot/github_actions/github/codeql-action/analyze-4.38.1': 'ceb0a32515c4cf5d3d7629b45ef05df382a04233',
+              'dependabot/github_actions/github/codeql-action/init-4.38.1': 'fd7fb4d51aa98aa2424349a0ce4162fd5865b89a',
+          }
+          parents = subprocess.check_output(['git', 'show', '-s', '--format=%P', sha], text=True).split()
+          if len(parents) != 2:
+              raise SystemExit('Expected the reviewed two-parent consolidation merge; no branches deleted')
+          candidates['release/01.01.02'] = parents[1]
+          remote = {}
+          for row in subprocess.check_output(['git', 'ls-remote', '--heads', 'origin'], text=True).splitlines():
+              value, ref = row.split()
+              remote[ref] = value
+          leases, deletions, retired = [], [], []
+          for name, expected in candidates.items():
+              if name in {'main', 'dev'}:
+                  raise SystemExit('Protected maintenance target refused')
+              ref = 'refs/heads/' + name
+              if ref not in remote:
+                  continue
+              if remote[ref] != expected:
+                  raise SystemExit(f'{name} advanced; preserve it for another review')
+              subprocess.run(['git', 'merge-base', '--is-ancestor', expected, sha], check=True)
+              leases.append(f'--force-with-lease={ref}:{expected}')
+              deletions.append(':' + ref)
+              retired.append({'branch': name, 'sha': expected})
+          if deletions:
+              subprocess.run(['git', 'push', '--atomic', *leases, 'origin', *deletions], check=True)
+          print(json.dumps({'event': 'integrated_branches_retired', 'commit': sha, 'branches': retired}))
+          PY
+
+      - name: Publish the preserved release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit v01.01.02 --repo "$GITHUB_REPOSITORY" --draft=false --latest

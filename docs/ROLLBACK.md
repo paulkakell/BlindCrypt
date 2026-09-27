@@ -2,7 +2,7 @@
 
 ## Before production release
 
-The `dev` branch can be reset or deleted without affecting deployed Pages because production remains on `main`. Preserve the failed commit SHA for investigation.
+Keep `dev` and its history. Before production promotion, revert failed changes on the release branch or create a corrective commit; do not force-reset or delete the retained development branch.
 
 ## After format v3 is released
 
@@ -35,3 +35,11 @@ After rollback, confirm:
 - new encryption is either verified or intentionally disabled
 - CSP, no-network behavior, file limits, and neutral legacy output remain intact
 - Pages reports the expected deployment commit
+
+## 01.01.02 recovery
+
+Pre-consolidation `main`: `0aff0635c4edd0ea4e4bde964815f5555bae7718` (01.01.01). The release preserves `blindcrypt-01.01.01-rollback.tar.gz`, `blindcrypt-01.01.02.tar.gz`, `blindcrypt-pre-cleanup.bundle` and `RELEASE-SHA256SUMS` before deleting any branch. Verify checksums before using the artifacts. Both versions retain the v3 reader.
+
+To restore an individual retired branch, use its exact SHA from `docs/RELEASE_01.01.02.md`: `git branch <original-name> <recorded-sha>` then `git push origin <original-name>`. Do not overwrite an existing branch. The recorded commits also remain ancestors of `main`; the Git bundle provides an independent history backup (`git bundle verify blindcrypt-pre-cleanup.bundle`).
+
+For application rollback, redeploy the preserved 01.01.01 static artifact, or create a rollback pull request reverting the consolidation merge with `git revert -m 1 <merge-sha>`, then rerun validation. Do not reset `main`, rewrite the published tag, or return to the unversioned reader. A failed finalization retains branches until artifact and ancestry checks pass; a partial draft release must be inspected before retry.

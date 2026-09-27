@@ -76,3 +76,7 @@ Returns transparent word-count information for bundled-word phrases. Custom pass
 ### `validateNewPassphrase(passphrase, wordSet)`
 
 Accepts at least six bundled words or a non-repetitive custom passphrase meeting the configured length rules. Returns the NFC-normalized value used by format v3.
+
+## 01.01.02 compatibility
+
+Public exports, options, callbacks and container formats are unchanged. The internal PBKDF2 helper snapshots exactly the supplied salt view before yielding to WebCrypto. Offset views preserve their byte range; later caller mutation does not alter the derivation. No type assertion or disabled type checking is used to bypass WebCrypto's buffer contract.

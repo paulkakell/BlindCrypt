@@ -1,7 +1,7 @@
 // @ts-check
 
 /** BlindCrypt application version. */
-export const APP_VERSION = "01.01.01";
+export const APP_VERSION = "01.01.02";
 
 /** New files are written with format v3. */
 export const FORMAT_VERSION = 3;
@@ -255,6 +255,8 @@ export async function deriveKey(passphrase, salt, iterations, normalize) {
   requireWebCrypto();
   const passphraseBytes = encodePassphrase(passphrase, normalize);
   try {
+    // Snapshot the caller view before yielding; WebCrypto requires an ordinary buffer.
+    const saltBytes = new Uint8Array(salt);
     const baseKey = await globalThis.crypto.subtle.importKey(
       "raw",
       passphraseBytes,
@@ -263,7 +265,7 @@ export async function deriveKey(passphrase, salt, iterations, normalize) {
       ["deriveKey"],
     );
     return await globalThis.crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+      { name: "PBKDF2", salt: saltBytes, iterations, hash: "SHA-256" },
       baseKey,
       { name: "AES-GCM", length: 256 },
       false,

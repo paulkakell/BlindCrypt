@@ -4,9 +4,9 @@
 
 | Version | Status |
 |---|---|
-| 01.01.01 development candidate | Security fixes accepted on `dev` |
-| 01.01.00 development candidate | Superseded by 01.01.01 before release |
-| Unversioned baseline | Unsupported after 01.01.01 is released |
+| 01.01.02 | Current maintenance line after its validated release tag is published |
+| 01.01.01 | Compatible rollback baseline; fixes move to 01.01.02 |
+| 01.01.00 and unversioned baseline | Superseded; do not use as the production rollback reader |
 
 ## Reporting a vulnerability
 

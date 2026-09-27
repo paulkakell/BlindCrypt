@@ -2,10 +2,10 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "BlindCrypt-01.01.01",
-  "documentNamespace": "https://github.com/paulkakell/BlindCrypt/spdx/01.01.01/2026-08-13",
+  "name": "BlindCrypt-01.01.02",
+  "documentNamespace": "https://github.com/paulkakell/BlindCrypt/spdx/01.01.02/2026-09-27",
   "creationInfo": {
-    "created": "2026-08-14T03:30:00Z",
+    "created": "2026-09-27T17:00:00Z",
     "creators": [
       "Tool: BlindCrypt release validation"
     ]
@@ -14,7 +14,7 @@
     {
       "name": "BlindCrypt",
       "SPDXID": "SPDXRef-Package-BlindCrypt",
-      "versionInfo": "01.01.01",
+      "versionInfo": "01.01.02",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
@@ -25,15 +25,15 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:github/paulkakell/BlindCrypt@01.01.01"
+          "referenceLocator": "pkg:github/paulkakell/BlindCrypt@01.01.02"
         }
       ]
     },
     {
       "name": "TypeScript",
       "SPDXID": "SPDXRef-Package-TypeScript",
-      "versionInfo": "5.8.3",
-      "downloadLocation": "https://registry.npmjs.org/typescript/-/typescript-5.8.3.tgz",
+      "versionInfo": "7.0.2",
+      "downloadLocation": "https://registry.npmjs.org/typescript/-/typescript-7.0.2.tgz",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
       "licenseDeclared": "Apache-2.0",
@@ -43,7 +43,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:npm/typescript@5.8.3"
+          "referenceLocator": "pkg:npm/typescript@7.0.2"
         }
       ]
     }
@@ -59,5 +59,6 @@
       "relationshipType": "BUILD_TOOL_OF",
       "relatedSpdxElement": "SPDXRef-Package-BlindCrypt"
     }
-  ]
+  ],
+  "documentComment": "Top-level application and development-tool inventory. The complete development-tool dependency graph, including 20 optional platform-specific TypeScript packages, is recorded in package-lock.json; SHA-256: c5df91e83f41f12c011ab53c5da0a45ac926638c0161049121ad1ff4acf441f0. No development-tool packages are included in the static application."
 }

@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
@@ -47,17 +48,17 @@ const packageJson = JSON.parse(await readFile(resolve(root, "package.json"), "ut
 if (packageJson.dependencies && Object.keys(packageJson.dependencies).length) {
   failures.push("Runtime dependencies are not allowed");
 }
-const allowedDevDependencies = { typescript: "5.8.3" };
+const allowedDevDependencies = { typescript: "7.0.2" };
 if (JSON.stringify(packageJson.devDependencies) !== JSON.stringify(allowedDevDependencies)) {
   failures.push("Development dependency allowlist changed");
 }
-const lock = JSON.parse(await readFile(resolve(root, "package-lock.json"), "utf8"));
-if (lock.lockfileVersion !== 3 || lock.packages?.["node_modules/typescript"]?.integrity !== "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==") {
-  failures.push("TypeScript lock integrity changed");
-}
-const lockedPackages = Object.keys(lock.packages).filter(Boolean);
-if (lockedPackages.length !== 1 || lockedPackages[0] !== "node_modules/typescript") {
-  failures.push("Unexpected package appears in package-lock.json");
+// Pin the complete reviewed lockfile, including all 20 optional native compiler packages.
+// npm ci separately verifies every package's SHA-512 integrity from this lockfile.
+const lockText = await readFile(resolve(root, "package-lock.json"), "utf8");
+const lock = JSON.parse(lockText);
+const expectedLockSha256 = "c5df91e83f41f12c011ab53c5da0a45ac926638c0161049121ad1ff4acf441f0";
+if (lock.lockfileVersion !== 3 || createHash("sha256").update(lockText).digest("hex") !== expectedLockSha256) {
+  failures.push("Reviewed development lockfile changed; dependency security review required");
 }
 
 if (failures.length) {

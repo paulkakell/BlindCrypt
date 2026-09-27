@@ -18,6 +18,6 @@
     "validate": "npm run lint && npm run typecheck && npm test && npm run security && npm run config && npm run build && npm run smoke && npm run perf"
   },
   "devDependencies": {
-    "typescript": "5.8.3"
+    "typescript": "7.0.2"
   }
 }
