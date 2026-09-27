@@ -41,9 +41,19 @@ test("offline worker never caches user paths, query data, POSTs, or arbitrary ru
   assert.equal(await w.get("https://other.test/"),null);assert.equal(w.requests.length,before);
 });
 test("worker activation requires an explicit in-scope client control message",async()=>{
-  const w=worker();await w.lifecycle("message",{data:{type:"OTHER"},source:{url:"https://example.test/BlindCrypt/"}});
-  await w.lifecycle("message",{data:{type:"ACTIVATE"},source:{url:"https://attacker.test/"}});assert.equal(w.activated(),0);
-  await w.lifecycle("message",{data:{type:"ACTIVATE"},source:{url:"https://example.test/BlindCrypt/"}});assert.equal(w.activated(),1);
+  const w=worker();await w.lifecycle("message",{origin:"https://example.test",data:{type:"OTHER"},source:{url:"https://example.test/BlindCrypt/"}});
+  await w.lifecycle("message",{origin:"https://example.test",data:{type:"ACTIVATE"},source:{url:"https://attacker.test/"}});assert.equal(w.activated(),0);
+  await w.lifecycle("message",{origin:"https://example.test",data:{type:"ACTIVATE"},source:{url:"https://example.test/BlindCrypt/"}});assert.equal(w.activated(),1);
+});
+test("offline activation rejects missing, foreign and lookalike origins even with a forged source URL",async()=>{
+  const w=worker();
+  for(const origin of[undefined,"null","https://attacker.test","https://example.test.attacker.test"]){
+    await w.lifecycle("message",{origin,data:{type:"ACTIVATE"},source:{url:"https://example.test/BlindCrypt/"}});
+  }
+  for(const url of["https://example.test/BlindCrypt-other/","https://example.test.attacker.test/BlindCrypt/","not a URL"]){
+    await w.lifecycle("message",{origin:"https://example.test",data:{type:"ACTIVATE"},source:{url}});
+  }
+  assert.equal(w.activated(),0);
 });
 test("production JavaScript has no persistent secret stores, unsafe HTML, dynamic code, or random Math",async()=>{
   for(const name of await readdir(new URL("../assets/",import.meta.url))){

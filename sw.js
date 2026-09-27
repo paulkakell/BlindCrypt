@@ -36,10 +36,14 @@ worker.addEventListener("activate", (event) => {
   })());
 });
 worker.addEventListener("message", (event) => {
+  // Check the browser-supplied message origin before interpreting the payload.
+  if (event.origin !== base.origin) return;
   const source = event.source;
-  if (event.data?.type === "ACTIVATE" && source && "url" in source && source.url.startsWith(base.href)) {
-    event.waitUntil(worker.skipWaiting());
-  }
+  if (!source || !("url" in source)) return;
+  let clientUrl;
+  try { clientUrl = new URL(source.url); } catch { return; }
+  if (clientUrl.origin !== base.origin || !clientUrl.pathname.startsWith(base.pathname)) return;
+  if (event.data?.type === "ACTIVATE") event.waitUntil(worker.skipWaiting());
 });
 worker.addEventListener("fetch", (event) => {
   const request = event.request;

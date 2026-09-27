@@ -16,6 +16,8 @@ Related: #13. Baseline commit: `d9ac4217604c248e73b34edebcbdbd6e8af80b06`. Candi
 - Clear visible generated secrets after operations and preserve I/O error causes while aborting incomplete output.
 - Expand SAST to all added browser modules, service worker and CLI while keeping the exact reviewed dependency lock pin.
 
+- Validate service-worker activation message origin and client scope explicitly, with forged-origin regression coverage. Retain hidden build markers in release artifacts so the checksum manifest remains complete. Iteration evidence and remaining test-harness findings are recorded in `docs/ITERATIONS_02.00.00.md`.
+
 ### Breaking
 
 - Optional offline behavior introduces narrowly scoped public-asset fetch/cache operations after explicit enablement; no user file or secret enters them.

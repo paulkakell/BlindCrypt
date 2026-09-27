@@ -15,3 +15,13 @@ Fix: narrow the two private record callback parameters to ArrayBuffer-backed Uin
 Additive: retain CodeQL SARIF as a commit-specific artifact so every reported finding can be inspected and resolved. The security scan still uploads to code scanning with security-extended queries, unchanged permissions and pinned actions. All reported alerts remain unresolved until evidence confirms otherwise. No runtime dependency or schema change.
 
 Rerun the entire suite on this candidate before drawing a release conclusion. Native browser/device and independent recipient review remain separate gates.
+
+## Iteration 3: offline origin fix and remaining harness review
+
+Hosted iteration-2 validation [36342919380](https://github.com/paulkakell/BlindCrypt/actions/runs/36342919380) passed the locked compiler, zero-vulnerability dependency audit, all 73 Node tests, lint/SAST/config/build/smoke/performance, and 10 actual Chrome workflow checks with zero console exceptions. The native picker was mocked, not independently validated.
+
+Inspected SARIF from [36342919330](https://github.com/paulkakell/BlindCrypt/actions/runs/36342919330) identified four findings: two fixture-to-dynamic-JavaScript flows (`js/code-injection`), browser fixture bytes reaching a dynamically discovered DevTools WebSocket (`js/file-access-to-http`), and missing explicit message-origin verification in the service worker (`js/missing-origin-check`).
+
+Fix: validate both browser-supplied message origin and parsed in-scope client URL before interpreting activation messages. Add a regression for forged, missing, foreign and lookalike origins. Retain the generated `.nojekyll` marker in the published CI artifact so its complete checksum manifest can be verified.
+
+A separate attempted test-harness revision was blocked by a tool safety check and was not committed. The existing harness remains unchanged; its three reported security findings require further remediation and review. No finding was suppressed, no query was disabled, and a successful test workflow is not a clean CodeQL result. Do not merge or publish this candidate while those findings or other release gates remain unresolved.
