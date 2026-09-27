@@ -1,31 +1,40 @@
 # Validation evidence: 02.00.00
 
-Tracker: [#13](https://github.com/paulkakell/BlindCrypt/issues/13). Baseline source was recovered from GitHub Actions and its Git tree matched `b894e7909d314087a2f3cbb31ca48f8e812b3c12` for commit `d9ac4217604c248e73b34edebcbdbd6e8af80b06`.
+Roadmap: #13. Implementation PR: #14. Remaining browser-harness security findings: #15. Full iteration history is in [ITERATIONS_02.00.00.md](ITERATIONS_02.00.00.md).
 
-## Evidence recorded during implementation
+## Exact implementation and hosted evidence
 
-- Original full Node suite: 34 tests passed before changes.
-- Expanded suite: 72 tests passed locally, including 38 new feature/streaming/recipient/CLI/offline tests. Rerun counts in CI are authoritative if later tests are added.
-- Lint, diagnostic strict browser/worker checking, static artifact build and allowlisted HTTP smoke were executed locally. Exact final outcomes are recorded in the candidate workflow rather than inferred from these intermediate runs.
-- Streaming test encrypts a file-backed 65 MiB source to disk, rejects it through the old buffered API, and decrypts it through a bounded sink with a matching SHA-256 digest. Error/cancel/tamper tests require abort rather than close.
-- JWE interoperability is tested in both directions against Node's separate classic crypto interface, not only by calling the same encryption module twice.
-- No new npm dependency or lockfile change. Local `npm ci --offline` could not install the uncached pinned TypeScript package. Available global TypeScript 5.8.3 was used only as a diagnostic. It is not the required TypeScript 7.0.2 release validation.
-- Local Chromium navigation is blocked by the execution environment with `net::ERR_BLOCKED_BY_ADMINISTRATOR`. The restriction was not disabled. Local browser end-to-end tests therefore do not have a passing result. The same dependency-free browser test is an explicit GitHub CI gate on a normal Chrome runner.
+Implementation head: `7e20d421501c7e0d5601c7bb41a0e56b1fd718cb`. Source tree: `80fcc795a7e37cb86c2a1386cd8cab0d537368e7`. The locally tested and uploaded source trees match exactly. GitHub's synthetic PR merge `b1d8e014b6363fc1ace79e5073c2bbe5bc3df6ba` uses the same tree, so the hosted workflow tested identical source content. Later documentation-only commits do not establish a new production release.
 
-## Required exact-commit CI evidence
+[Security validation run 36343333793](https://github.com/paulkakell/BlindCrypt/actions/runs/36343333793) succeeded on September 27, 2026:
 
-`npm ci --ignore-scripts`, `npm audit --audit-level=high`, and `CHROME_BIN=/usr/bin/google-chrome npm run validate` must succeed on the exact candidate. `npm run validate` includes the actual Chromium suite; `validate:core` alone does not satisfy this requirement. CodeQL runs separately with security-extended queries. Inspect its results rather than claiming a clean audit solely because analysis executed.
+- Fresh Node.js 22.16.0 installation using the unchanged reviewed TypeScript 7.0.2 lockfile.
+- Dependency audit: zero known vulnerabilities reported for the installed graph. This is a dated scan, not a guarantee of absence of unknown vulnerabilities.
+- Lint, strict browser/worker type checking, all 74 unit/integration/regression tests, custom SAST, configuration validation, deterministic build, allowlisted HTTP smoke and performance checks passed.
+- Ten actual Chrome 153 workflow checks passed with zero console exceptions, including file downloads, text, recipient workflows, cancellation, legacy handling and offline reload after stopping the HTTP server.
+- The 1 MiB performance smoke recorded 166.8 ms encryption and 161.5 ms decryption on that runner. These are smoke-test observations, not cross-device performance guarantees.
+- Every downloaded static/CLI artifact entry matched its SHA256SUMS, including the generated hidden `.nojekyll` marker. Source, validation log and SARIF artifacts are retained by the workflows.
 
-CI preserves `validation-<sha>` and the full static/CLI artifact with `SHA256SUMS`. The PR and tracker must record immutable commit/run links and their actual outcomes. Pending and failed jobs remain pending/failed until observed otherwise. This document intentionally does not manufacture a run ID or commit hash before publication.
+The original 34-test suite passed before implementation. The candidate adds 40 tests. Browser/worker types are strictly checked; the CLI has syntax, integration and static-analysis coverage rather than newly introduced Node ambient type dependencies. No runtime or development dependency was added.
 
-## Coverage boundaries
+## Security scan: not clean
 
-Node tests cover filename privacy, sequential queues, cancellation, text bounds/Unicode/strict decoding, re-encryption and legacy limits, v3 chunk/buffer compatibility, no-Blob verification, cleanup on I/O/close/authentication failures, oversize rejection, standard JWE algorithms/key bounds/wrong recipient/corruption, identity protection, independent interoperability, CLI secret parsing/no-overwrite/races/symlinks/error privacy, and asset-cache scope/digests/activation rules.
+[CodeQL run 36343333761](https://github.com/paulkakell/BlindCrypt/actions/runs/36343333761) produced inspectable SARIF. The service-worker origin-check finding from the previous iteration is absent after explicit message-origin/client-scope validation and forged-origin regression coverage.
 
-The browser suite exercises real DOM/File/WebCrypto/download flows, batch processing, plaintext-free verification downloads, text literal display, re-encryption, legacy warnings, recipient key/export/import/decrypt/verify, cancellation and offline reload with the HTTP server stopped. Its native save picker is deliberately mocked while the real cryptographic stream and adapter calls run; this is not a claim of OS-picker validation.
+Three findings remain in `scripts/browser.mjs`: two `js/bad-code-sanitization` results at line 50 and one `js/file-access-to-http` result at line 38. These concern fixture content embedded in DevTools code and its debugging transport, not a demonstrated application upload of user documents. They remain release blockers in #15. A proposed harness revision was blocked by tool safety checks and was not committed. No query or security rule was disabled, and no finding was suppressed or dismissed. A successful analysis job does not mean code-scanning acceptance passed.
 
-Still separate: native picker permissions, disk-full and overwrite behavior across operating systems; multiple browser/device/mobile/assistive-technology coverage; cache eviction/update/multiple-tab scenarios; independent cryptographic review; final deployed-origin settings; production tag/artifact publication. No database exists, so migration/rollback-migration testing is not applicable.
+## Coverage and limitations
 
-## Security review summary
+Tests cover opaque names, sequential queues, independent randomness, cancellation, text UTF-8/size/encoding bounds, re-encryption/legacy warnings, buffer/stream compatibility, no-Blob verification, tampering, write/close failures, owned-buffer contracts, protected identities, wrong recipients, two-way interoperability with Node's separate classic crypto interface, CLI no-overwrite/races/symlinks/secret parsing, and offline asset allowlists/digests/rollback/origin checks.
 
-New secret entry points share validation. Existing legacy secret semantics are preserved. Input bounds are checked before expensive work wherever possible. Public-key fingerprints must be independently verified. There are no accounts or server authorization changes. The optional worker's fixed application-asset network/storage path is explicitly documented and tested. The CLI never accepts a secret argument or outputs raw exceptions; its staged files are exclusive and mode 0600, and destination commit refuses races/overwrites. JavaScript zeroization and disk unlink are best effort, not secure-erasure claims. JWE authenticates ciphertext to the recipient, not the sender. See the updated threat model for remaining trust assumptions.
+The streaming suite performed a real file-backed 65 MiB encrypted round trip with a matching SHA-256 digest and a maximum 512 KiB plaintext sink write. The configured 4 GiB ceiling is not a claim that a full 4 GiB native-browser workload was tested. The browser suite mocks the OS save picker while exercising the actual cryptographic stream and adapter calls.
+
+Local Chromium navigation was blocked by administrator policy and that restriction was not bypassed. Local offline installation of the uncached pinned compiler also failed. Local TypeScript 5.8.3 diagnostics were not treated as release evidence; the hosted locked-tool and real-browser results above supply that evidence.
+
+## Outstanding release gates
+
+Resolve #15 and obtain a clean scan on the exact candidate. Record native save-picker permission/overwrite/disk-full/cancellation, the intended additional browser/device/assistive-technology matrix, offline cache eviction and multiple-tab updates. Obtain independent recipient-cryptography review before high-value recommendations. Automated interoperability is not an independent audit.
+
+Review and merge only an accepted head, rerun production-SHA validation, verify deployment, and publish immutable `v02.00.00` with source/static/CLI/checksum/SBOM/release-note/evidence artifacts. No production merge, deployment or release tag is claimed here. Preserve prior artifacts and newer readers for large-profile/JWE files during rollback.
+
+No accounts, server authorization, database, schema migration or new environment-secret configuration exist. New secret entry points share validation; legacy passphrase semantics remain intact. CLI diagnostics omit raw exceptions/secrets, partial files use exclusive mode-0600 output, and commit refuses overwrites. JavaScript buffer clearing and filesystem unlink do not guarantee secure erasure. Optional offline storage contains public application assets only. See the threat model and rollback guide for the complete boundaries.

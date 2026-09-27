@@ -20,8 +20,14 @@ Rerun the entire suite on this candidate before drawing a release conclusion. Na
 
 Hosted iteration-2 validation [36342919380](https://github.com/paulkakell/BlindCrypt/actions/runs/36342919380) passed the locked compiler, zero-vulnerability dependency audit, all 73 Node tests, lint/SAST/config/build/smoke/performance, and 10 actual Chrome workflow checks with zero console exceptions. The native picker was mocked, not independently validated.
 
-Inspected SARIF from [36342919330](https://github.com/paulkakell/BlindCrypt/actions/runs/36342919330) identified four findings: two fixture-to-dynamic-JavaScript flows (`js/code-injection`), browser fixture bytes reaching a dynamically discovered DevTools WebSocket (`js/file-access-to-http`), and missing explicit message-origin verification in the service worker (`js/missing-origin-check`).
+Inspected SARIF from [36342919330](https://github.com/paulkakell/BlindCrypt/actions/runs/36342919330) identified four findings: two fixture-to-dynamic-JavaScript flows (`js/bad-code-sanitization`), browser fixture bytes reaching a dynamically discovered DevTools WebSocket (`js/file-access-to-http`), and missing explicit message-origin verification in the service worker (`js/missing-origin-check`).
 
 Fix: validate both browser-supplied message origin and parsed in-scope client URL before interpreting activation messages. Add a regression for forged, missing, foreign and lookalike origins. Retain the generated `.nojekyll` marker in the published CI artifact so its complete checksum manifest can be verified.
 
 A separate attempted test-harness revision was blocked by a tool safety check and was not committed. The existing harness remains unchanged; its three reported security findings require further remediation and review. No finding was suppressed, no query was disabled, and a successful test workflow is not a clean CodeQL result. Do not merge or publish this candidate while those findings or other release gates remain unresolved.
+
+## Recorded outcome after iteration 3
+
+[Validation 36343333793](https://github.com/paulkakell/BlindCrypt/actions/runs/36343333793) passed all 74 Node tests and 10 real Chrome checks on `7e20d421501c7e0d5601c7bb41a0e56b1fd718cb`. The workflow's synthetic merge commit `b1d8e014b6363fc1ace79e5073c2bbe5bc3df6ba` has the same source tree `80fcc795a7e37cb86c2a1386cd8cab0d537368e7` as the candidate. Every downloaded static/CLI artifact entry matched SHA256SUMS, including `.nojekyll`.
+
+[CodeQL 36343333761](https://github.com/paulkakell/BlindCrypt/actions/runs/36343333761) confirms the missing-origin-check finding is absent. Three findings remain: two `js/bad-code-sanitization` results at `scripts/browser.mjs:50` and one `js/file-access-to-http` result at `scripts/browser.mjs:38`. They are tracked in #15. The analysis workflow succeeds but code-scanning acceptance does not; this is not a clean security scan. Production remains unchanged and the release is not tagged.
