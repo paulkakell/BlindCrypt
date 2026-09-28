@@ -41,3 +41,14 @@ No service backend, account system, cloud synchronization, database, or plaintex
 - [ ] Validated production commit merged, deployment checked, tag and source/static/CLI/checksum/SBOM/validation artifacts published.
 
 See [validation](VALIDATION_02.00.00.md), [release checklist](RELEASE_CHECKLIST.md), and [rollback](ROLLBACK.md). The tracker records immutable commit and workflow references as evidence becomes available. No issue is closed solely because an implementation checkbox is checked.
+
+## Security maintenance follow-up: 02.00.01
+
+After owner-authorized merge #14 at `8cea1fe449cff297338c8c2bd6a0e71e555382eb`, #15 tracks the three harness findings. Patch 02.00.01 replaces executable data interpolation and debugging network transport, adds regression tests, and retains all existing browser workflows. It prepares recovery-before-deletion cleanup for the fully integrated release and fix branches. See VALIDATION_02.00.01.md for evidence and the issue for exact current status. Native OS/device coverage and independent recipient review remain open under #13.
+
+Implementation commit `18bf517ffdc058b486239c2acb749ebfb92c8c34` passed hosted
+validation with 95 Node tests and 11 actual Chromium checks. Downloaded CodeQL
+SARIF has zero results. See VALIDATION_02.00.01.md and PR #16 for immutable run
+references. Production revalidation and branch retirement are separate steps;
+none of the unrelated native-device or independent-review gates is closed by
+these automated results.

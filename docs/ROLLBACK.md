@@ -1,4 +1,4 @@
-# Rollback and recovery: 02.00.00
+# Rollback and recovery: 02.00.01
 
 Baseline: `v01.01.02`, commit `d9ac4217604c248e73b34edebcbdbd6e8af80b06`. Preserve its released source/artifacts. Also preserve the validated 02.00.00 reader, static/CLI artifact and checksums before any rollout. Existing rollback instructions for the historical release are retained in Git history.
 
@@ -27,3 +27,17 @@ Keygen's two downloads/outputs are not one atomic filesystem transaction. Preser
 ## Verification after rollback
 
 Run legacy and v3 fixtures, a large-profile round trip, recipient decryption with the preserved identity, malformed/tampered rejection, CLI no-overwrite/cleanup, and offline cache-version tests against the retained reader. Verify checksums, display version and exact commit evidence. There is no database migration or schema rollback. Record which versions remain needed for recovery and never announce rollback success based only on a page returning HTTP 200.
+
+## Maintenance patch 02.00.01
+
+The pre-patch production commit is `8cea1fe449cff297338c8c2bd6a0e71e555382eb`. Before branch deletion, the scoped maintenance workflow uploads a verified Git bundle, a pre-patch source tar, exact gate evidence and checksums with 90-day retention. Existing ancestor commits remain reachable through main's merge history after the branch names are deleted. Retain downloaded recovery artifacts beyond workflow retention.
+
+To recreate the old release branch in an authorized clone, first confirm the name is absent and then run:
+
+```sh
+git fetch origin main
+git branch recovery-02.00.00 73759b4649a8dd26e255770f06b6eb8caa35f03b
+git push origin recovery-02.00.00:refs/heads/release/02.00.00
+```
+
+Do not overwrite a subsequently recreated branch. The retirement receipt identifies the exact fix-branch SHA for the same recovery procedure. Revert a maintenance merge via a reviewed new commit; do not force-reset main. Preserve current readers for large-profile/JWE files. A full harness rollback would reintroduce the reported findings; prefer a forward repair. No database rollback is needed.

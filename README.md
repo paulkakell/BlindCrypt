@@ -1,6 +1,6 @@
 # BlindCrypt
 
-BlindCrypt `02.00.00` is a local-first file and text encryption application with a shared-core Node.js CLI. This is a release candidate until the exact commit passes the [release gates](docs/ROADMAP.md). It has no accounts, backend, uploads, analytics, or runtime package dependencies.
+BlindCrypt `02.00.01` is a local-first file and text encryption application with a shared-core Node.js CLI. This is a release candidate until the exact commit passes the [release gates](docs/ROADMAP.md). It has no accounts, backend, uploads, analytics, or runtime package dependencies.
 
 Ordinary passphrase files use authenticated format v3; v1/v2 remain readable with legacy warnings. Browser encryption uses WebCrypto. Optional offline installation fetches and caches only fixed application assets. User files, plaintext, passphrases and private keys are never put in application storage or network requests.
 
@@ -46,7 +46,7 @@ CHROME_BIN=/usr/bin/google-chrome npm run validate
 python3 -m http.server 8080 --directory dist
 ```
 
-`npm run validate` runs lint, strict browser/worker type checks, all Node unit/integration/regression tests, custom SAST, configuration checks, deterministic build, HTTP smoke, performance checks, and actual Chromium workflow tests. It does not substitute an HTTP fetch for browser coverage. The browser test uses Node's built-in DevTools WebSocket and an installed Chromium/Chrome executable, not an additional npm dependency. On a local Chromium system use `CHROME_BIN=/usr/bin/chromium`.
+`npm run validate` runs lint, strict browser/worker type checks, all Node unit/integration/regression tests, custom SAST, configuration checks, deterministic build, HTTP smoke, performance checks, and actual Chromium workflow tests. It does not substitute an HTTP fetch for browser coverage. The browser test uses private child-process DevTools pipes and an installed Chromium/Chrome executable, not an additional npm dependency. On a local Chromium system use `CHROME_BIN=/usr/bin/chromium`.
 
 `npm run validate:core` runs all non-browser checks for diagnostics; it is not a complete release gate. `npm run browser` runs the built-artifact browser checks separately. `npm run build` creates the site, CLI, generated icons, digest-pinned service worker and `SHA256SUMS`. The source `sw.js` intentionally cannot install before a build.
 
@@ -64,8 +64,12 @@ Recipient envelopes are standard JWE Compact Serialization with a documented Bli
 
 All accepted work and remaining release gates are tracked in [roadmap issue #13](https://github.com/paulkakell/BlindCrypt/issues/13) and [docs/ROADMAP.md](docs/ROADMAP.md).
 
-Version format is `<Release>.<Feature Update>.<Bug Fix>`, two digits per field. Development commits identify the target version but are not production release tags. After exact-commit validation, review and merge, create `v02.00.00` and publish source, static/CLI artifact, checksums, SBOM, release notes and validation evidence. Retain `v01.01.02`, but do not roll back to an old reader after creating large-profile or recipient files without retaining the newer recovery reader.
+Version format is `<Release>.<Feature Update>.<Bug Fix>`, two digits per field. Development commits identify the target version but are not production release tags. After exact-commit validation, review and merge, create the matching immutable version tag and publish source, static/CLI artifact, checksums, SBOM, release notes and validation evidence. Retain `v01.01.02`, but do not roll back to an old reader after creating large-profile or recipient files without retaining the newer recovery reader.
 
-See [changelog](CHANGELOG.md), [release notes](docs/RELEASE_02.00.00.md), [validation](docs/VALIDATION_02.00.00.md), [checklist](docs/RELEASE_CHECKLIST.md), [rollback](docs/ROLLBACK.md), and [commit notes](COMMIT_NOTES.md).
+See [changelog](CHANGELOG.md), [release notes](docs/RELEASE_02.00.01.md), [validation](docs/VALIDATION_02.00.01.md), [checklist](docs/RELEASE_CHECKLIST.md), [rollback](docs/ROLLBACK.md), and [commit notes](COMMIT_NOTES.md).
 
 Report undisclosed vulnerabilities through [SECURITY.md](SECURITY.md), not a public issue. MIT license.
+
+## Maintenance in 02.00.01
+
+The browser test harness uses private Chromium pipes and fixed functions with separate data arguments. See [browser testing](docs/BROWSER_TESTS.md) for configuration and examples. No browser security policy or CodeQL query is disabled. `main` and `dev` remain long-lived branches. The version-scoped maintenance workflow preserves a recovery bundle before deleting only reviewed, integrated release/fix branches. Application formats and public APIs are unchanged.

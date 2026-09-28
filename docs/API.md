@@ -1,4 +1,4 @@
-# JavaScript API: 02.00.00
+# JavaScript API: 02.00.01
 
 All examples use ES modules and WebCrypto. `Blob` inputs are local and explicitly supplied by the caller. Production code has no runtime package dependency. Every sink and callback is trusted application code, never parsed out of a container.
 
@@ -66,3 +66,7 @@ const result = await decryptForRecipient(envelope, identity, { verifyOnly: true 
 `BlindCryptError.code` gives bounded categories such as `INVALID_FORMAT`, `INVALID_KDF`, `FILE_TOO_LARGE`, `INVALID_PASSPHRASE`, `AUTHENTICATION_FAILED`, and `CANCELLED`. Sink failures preserve their original cause for trusted local callers; the UI and CLI do not print raw exceptions or secrets. No instrumentation should include passphrases, filenames, plaintext, keys or untrusted message data.
 
 Existing buffered callers remain source-compatible. Old readers reject the new large-profile size and recipient envelope; do not claim wire compatibility for those opt-in workflows. No database migration is required.
+
+## 02.00.01 compatibility
+
+This tooling/security patch changes no public API, CLI option or container format. Only version values advance. The private test-driver helpers are not application APIs; see BROWSER_TESTS.md for their contracts.

@@ -23,12 +23,36 @@ The replacement pipe transport reached Chromium, but Page.navigate returned
 browser workflows are therefore not reported as passed; the unchanged hosted
 browser gate must run all prior workflows and the new fixture-data regression.
 
-## Hosted gates
+## Hosted evidence for implementation 18bf517f
 
-Pending at this implementation commit: exact-head locked install/audit/full
-validation, actual Chromium workflows, and inspection of CodeQL SARIF results.
-Workflow run IDs, source SHA and conclusions will be added to #15. Do not equate
-an analysis job's success with the absence of alerts.
+Implementation commit: `18bf517ffdc058b486239c2acb749ebfb92c8c34`. Its uploaded
+source tree `e350f781ca2c4f0997d272faf206ae4b733e210b` exactly matches the
+locally tested implementation index. GitHub's PR merge used
+`22e82f0ebceef2f577b4ac09cb21370d9e4d01c5`.
+
+[Validation run 36365862545](https://github.com/paulkakell/BlindCrypt/actions/runs/36365862545)
+passed on September 27, 2026 in America/Denver (September 28 UTC). Fresh locked
+installation and dependency audit succeeded. All 95 Node tests passed with no
+skips, plus 11 actual Chrome 153 workflow checks and zero console exceptions.
+Lint, locked strict type checking, custom SAST, configuration, deterministic build,
+HTTP smoke and performance checks passed. The hosted 1 MiB smoke measured
+130.6 ms encryption and 126.9 ms decryption.
+
+[CodeQL run 36365862525](https://github.com/paulkakell/BlindCrypt/actions/runs/36365862525)
+completed successfully. The downloaded `javascript.sarif` was parsed and contains
+zero results, including none of the three reported medium findings. No alert was
+dismissed and no rule/query was suppressed. The SARIF ZIP SHA-256 is
+`275e5b5a10f00f9dca0afb261608edbc7f924a2e57b9c436f55885e869191a82`.
+The downloaded validation ZIP SHA-256 is
+`8e02f86344ab11b5c3421bb1475fd7bb38b54b1fd21d8b37eb8fca0918fb2c7f`.
+
+The eleventh browser check confirms fixture quotes, backslashes, Unicode line
+separators and markup remain literal data. All ten prior application workflows
+are retained. These results cover the implementation commit, not an unobserved
+future merge. Final documentation and production commits must be revalidated;
+immutable run references and cleanup receipts are recorded in #15 and PR #16.
+The maintenance workflow independently checks exact-production-SHA CI, CodeQL,
+Pages and zero SARIF results before any branch deletion.
 
 ## Review scope
 
