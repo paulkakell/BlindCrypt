@@ -1,0 +1,115 @@
+name: Finalize 02.00.01 maintenance
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/RELEASE_02.00.01.md, .github/workflows/maintenance-02.00.01.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maintenance-02.00.01
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    if: github.repository == 'paulkakell/BlindCrypt' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out exact maintenance merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require passing production checks and zero SARIF findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(cat VERSION)" = '02.00.01'
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess, time
+          repo = 'paulkakell/BlindCrypt'
+          sha = os.environ['GITHUB_SHA']
+          if not re.fullmatch(r'[a-f0-9]{40}', sha):
+              raise SystemExit('Invalid commit')
+          def api(path):
+              return json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/{path}'], text=True))
+          required = {'.github/workflows/ci.yml', '.github/workflows/codeql.yml', '.github/workflows/pages.yml'}
+          for attempt in range(120):
+              latest = {}
+              for run in api(f'actions/runs?head_sha={sha}&event=push&per_page=100')['workflow_runs']:
+                  path = run['path'].split('@', 1)[0]
+                  if path in required and (path not in latest or run['id'] > latest[path]['id']):
+                      latest[path] = run
+              if any(run['status'] == 'completed' and run['conclusion'] != 'success' for run in latest.values()):
+                  raise SystemExit('A production gate failed; no branches deleted')
+              if required <= latest.keys() and all(latest[path]['conclusion'] == 'success' for path in required):
+                  break
+              time.sleep(5)
+          else:
+              raise SystemExit('Production gates timed out; no branches deleted')
+          if api('git/ref/heads/main')['object']['sha'] != sha:
+              raise SystemExit('main advanced; no branches deleted')
+          scan = latest['.github/workflows/codeql.yml']
+          target = pathlib.Path(os.environ['RUNNER_TEMP']) / 'maintenance-sarif'
+          subprocess.run(['gh', 'run', 'download', str(scan['id']), '--repo', repo,
+                          '--name', f'codeql-findings-{sha}', '--dir', str(target)], check=True)
+          reports = list(target.glob('*.sarif'))
+          if not reports:
+              raise SystemExit('Missing scan evidence; no branches deleted')
+          count = 0
+          for report in reports:
+              document = json.loads(report.read_text())
+              if not document.get('runs'):
+                  raise SystemExit('Invalid scan evidence')
+              count += sum(len(run.get('results', [])) for run in document['runs'])
+          if count:
+              raise SystemExit(f'{count} scan findings remain; no branches deleted')
+          evidence = {'sha': sha, 'gatesPassed': True, 'sarifResults': count,
+                      'runs': {path: run['id'] for path, run in latest.items()}}
+          pathlib.Path('maintenance-evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
+          print(json.dumps(evidence))
+          PY
+
+      - name: Preserve complete branch history and pre-patch source
+        run: |
+          git bundle create branch-archive-02.00.01.bundle --all
+          git bundle verify branch-archive-02.00.01.bundle
+          git archive --format=tar --output=before-02.00.01.tar 8cea1fe449cff297338c8c2bd6a0e71e555382eb
+          sha256sum branch-archive-02.00.01.bundle before-02.00.01.tar maintenance-evidence.json > BRANCH-ARCHIVE-SHA256SUMS
+
+      - name: Upload recovery artifacts before any deletion
+        id: backup
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: branch-archive-02.00.01-${{ github.sha }}
+          path: |
+            branch-archive-02.00.01.bundle
+            before-02.00.01.tar
+            maintenance-evidence.json
+            BRANCH-ARCHIVE-SHA256SUMS
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Retire only reviewed integrated branches with atomic SHA leases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKUP_ARTIFACT_ID: ${{ steps.backup.outputs.artifact-id }}
+        run: |
+          set -o pipefail
+          node scripts/retire-branches.mjs --apply | tee branch-retirement.json
+
+      - name: Preserve branch retirement receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: branch-retirement-02.00.01-${{ github.sha }}
+          path: branch-retirement.json
+          if-no-files-found: warn
+          retention-days: 90

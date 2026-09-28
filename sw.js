@@ -1,7 +1,7 @@
 // @ts-check
 // Build injects an exact immutable asset manifest. This unbuilt source cannot install.
 const worker = /** @type {ServiceWorkerGlobalScope} */ (/** @type {unknown} */ (self));
-const VERSION = "02.00.00";
+const VERSION = "02.00.01";
 const BUILD_ID = /* BUILD_ID */ "unbuilt";
 /** @type {Record<string, string>} */
 const ASSETS = /* ASSET_MANIFEST */ {};
