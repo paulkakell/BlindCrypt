@@ -1,4 +1,4 @@
-# Threat model: 02.00.00
+# Threat model: 02.00.01
 
 ## Assets and assumptions
 
@@ -45,3 +45,7 @@ Compromised devices, browsers/extensions, runtimes, hosting/repository accounts,
 Native save-picker permissions/overwrite/disk-full/cancellation behavior, the intended cross-browser/mobile/assistive-technology matrix, cache eviction/multiple-tab updates and independent recipient cryptographic review require separate recorded checks. In particular, the new recipient implementation must not be recommended as independently audited or for high-value use before that review.
 
 Rollback must retain readers for every format already created, including v3 above 64 MiB and recipient JWE. There is no database migration. See [ROADMAP.md](ROADMAP.md), [VALIDATION_02.00.00.md](VALIDATION_02.00.00.md), and [ROLLBACK.md](ROLLBACK.md).
+
+## Maintenance tooling boundary (02.00.01)
+
+The browser harness treats fixture text as data, not code, and communicates with its own trusted Chromium child through private pipes instead of a discovered network endpoint. Protocol size, timeout and session checks limit tooling failures. This does not expand application data access. Branch retirement is restricted to two named, integrated heads, after successful exact-commit checks, clean SARIF inspection and uploaded recovery artifacts. SHA leases refuse concurrently changed heads. No main/dev/tag update is performed.

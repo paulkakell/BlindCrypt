@@ -1,5 +1,17 @@
 # Changelog
 
+## 02.00.01 - 2026-09-27
+
+Classification: security/tooling fix; no application API or container-format change. Refs #15 and #13. Baseline: `8cea1fe449cff297338c8c2bd6a0e71e555382eb` (02.00.00 merged through #14).
+
+- Replace the browser test harness's discovered debugging WebSocket with private child-process pipes. No debugging port or network fallback remains.
+- Replace fixture, field and selector interpolation with fixed page functions and by-value DevTools arguments, addressing two `js/bad-code-sanitization` flows and the `js/file-access-to-http` flow without suppressing CodeQL rules.
+- Add transport framing, Unicode, argument separation, timeout, failure, session-isolation and branch-retirement regressions. Preserve all ten prior real-browser workflows and add a fixture-data boundary check.
+- Increment application/worker/display/SBOM versions together. Keep the reviewed lockfile and all runtime dependencies unchanged.
+- Add a narrowly scoped maintenance workflow that requires exact-commit validation, deployment and zero SARIF findings, uploads recovery artifacts, then retires only integrated `release/02.00.00` and `fix/02.00.01` heads with atomic expected-SHA leases. Never delete or update `main`, `dev`, tags or unrelated branches.
+
+See `docs/VALIDATION_02.00.01.md` for executed evidence and limitations. This patch does not resolve unrelated native-browser or independent recipient-cryptography review gates in #13.
+
 ## 02.00.00 (release candidate, 2026-09-27)
 
 Related: #13. Baseline commit: `d9ac4217604c248e73b34edebcbdbd6e8af80b06`. Candidate/production hashes and CI evidence are recorded in the PR and tracker after publication; no hash is fabricated here.

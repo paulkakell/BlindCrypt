@@ -1,4 +1,4 @@
-# Architecture: 02.00.00
+# Architecture: 02.00.01
 
 BlindCrypt has two local user interfaces and no server-side data path:
 
@@ -53,12 +53,16 @@ The normal document keeps `connect-src 'none'`; cryptographic/UI modules have no
 ## Build, test and release path
 
 ```text
-issue #13 -> release/02.00.00 -> focused tests and local diagnostic checks
+issue #13 / #15 -> versioned branch -> focused tests and local diagnostics
           -> pull-request locked install/audit/full validation + CodeQL
           -> reviewed exact-head merge -> main validation + Pages
-          -> v02.00.00 tag + source/static/CLI/SBOM/checksum/evidence artifacts
+          -> matching tag after all release gates + source/static/CLI/evidence
 ```
 
 The deterministic build copies the application and CLI, generates icons, pins exact offline asset digests, and writes a complete checksum manifest. The CI source archive and validation log identify the candidate commit. Existing actions remain pinned to full SHAs. Runtime assets contain no GitHub credentials or build-tool packages.
 
 CodeQL and custom SAST cover the browser, worker and CLI; strict JavaScript type checks cover browser and worker modules. CLI interfaces are checked through syntax, SAST, CodeQL and integration tests rather than pretending that Node ambient type definitions were added. There is no new dependency, database, backend authentication, telemetry service or secret-bearing log pipeline.
+
+## Browser validation transport (02.00.01)
+
+`browser.mjs` starts a trusted Chromium child with private DevTools pipes. `browser-pipe.mjs` frames and bounds protocol messages; `browser-actions.mjs` separates fixed function declarations from by-value data. No debugging network endpoint is accepted. The loopback application server is unchanged. See BROWSER_TESTS.md.
